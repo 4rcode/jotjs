@@ -1,0 +1,6 @@
+{
+  "name": "jotjs",
+  "version": "0.0.0",
+  "main": "jot.js",
+  "types": "jot.d.ts"
+}

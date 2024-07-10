@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "outFile": "dist/jot.d.ts"
+  },
+  "include": ["src/main"]
+}
