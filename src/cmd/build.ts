@@ -21,19 +21,5 @@ if (import.meta.main) {
     ),
   );
 
-  await Promise.all(
-    files.map(async (file) => {
-      const src = `dist/${file}.js`;
-      const text = await Deno.readTextFile(src);
-
-      await Deno.writeTextFile(
-        src,
-        `// @ts-self-types="../src/main/${file}.ts"\n`,
-      );
-
-      await Deno.writeTextFile(src, text, { append: true });
-    }),
-  );
-
   await stop();
 }

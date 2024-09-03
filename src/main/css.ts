@@ -1,5 +1,3 @@
-import { className } from "./core.ts";
-
 interface Template {
   raw: readonly string[] | ArrayLike<string>;
 }
@@ -50,7 +48,7 @@ export function css(style: Template | JotRule, ...substitutions: unknown[]) {
     insertRule(styleSheet.cssRules[styleSheet.insertRule(`.${name}{}`)], style);
   }
 
-  return className(name);
+  return name;
 }
 
 /**

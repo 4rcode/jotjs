@@ -150,34 +150,36 @@ declare module "core" {
     interface Template {
         raw: readonly string[] | ArrayLike<string>;
     }
-    /**
-     *
-     * @param name
-     * @param value
-     * @returns
-     */
-    export function attr(name: string, value?: unknown): Attr & {
-        set(value?: unknown): void;
+    interface Hook {
+        attach(node: Node): void;
+        render?(ref: string): string;
+    }
+    export function attrs(values?: object): ((values: object) => void) & ((...hooks: Hook[]) => Node) & {
+        attach(node: Node): void;
     };
-    /**
-     *
-     * @param name
-     * @param value
-     * @returns
-     */
-    export function attr<E extends Element>(map: Record<string, unknown>): (element: E) => void;
+    export function props<T extends keyof HTMLElementTagNameMap>(_tag: T, values?: Partial<HTMLElementTagNameMap[T]>): ((values: Partial<HTMLElementTagNameMap[T]>) => void) & ((...hooks: Hook[]) => Node) & {
+        attach(node: Node): void;
+    };
     /**
      *
      * @param names
      * @returns
      */
-    export function className<E extends Element>(...names: string[]): (element: E) => void;
+    export function className(...names: string[]): ((...names: string[]) => void) & ((...hooks: Hook[]) => Node) & {
+        attach(node: Node): void;
+    };
     /**
      *
      * @param nodes
      * @returns
      */
     export function fragment(...nodes: (string | Node)[]): DocumentFragment;
+    /**
+     *
+     * @param nodes
+     * @returns
+     */
+    export function slot(...nodes: (string | Node)[]): Hook;
     /**
      *
      * @param template
@@ -192,7 +194,7 @@ declare module "core" {
      * @param options
      * @returns
      */
-    export function on<E extends HTMLElement, T extends keyof HTMLElementEventMap>(type: T, listener: (this: E, event: HTMLElementEventMap[T]) => void, options?: boolean | AddEventListenerOptions): (element: E) => void;
+    export function on<E extends HTMLElement, T extends keyof HTMLElementEventMap>(type: T, listener: (this: E, event: HTMLElementEventMap[T]) => void, options?: boolean | AddEventListenerOptions): Hook;
     /**
      *
      * @param type
@@ -200,14 +202,28 @@ declare module "core" {
      * @param options
      * @returns
      */
-    export function on<E extends HTMLElement>(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): (element: E) => void;
+    export function on(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): Hook;
     /**
      *
      * @param text
      * @returns
      */
-    export function text(value?: unknown): Text & {
-        set(value?: unknown): void;
+    export function text(value?: unknown): ((value: unknown) => void) & Hook;
+    /**
+     *
+     * @param hooks
+     * @returns
+     */
+    export function func(...hooks: ((node: Node) => void)[]): ((...hooks: ((node: Node) => void)[]) => void) & ((...hooks: Hook[]) => Node) & {
+        attach(node: Node): void;
+    };
+    /**
+     *
+     * @param hooks
+     * @returns
+     */
+    export function ref(...hooks: Hook[]): ((...hooks: Hook[]) => Node) & {
+        attach(node: Node): void;
     };
 }
 declare module "css" {
@@ -229,7 +245,7 @@ declare module "css" {
      * @param substitutions
      * @returns
      */
-    export function css(style: Template | JotRule, ...substitutions: unknown[]): (element: Element) => void;
+    export function css(style: Template | JotRule, ...substitutions: unknown[]): string;
     /**
      *
      * @param cssRule
