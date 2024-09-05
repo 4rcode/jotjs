@@ -1,12 +1,7 @@
 DENO := ${HOME}/.deno/bin/deno
 
-.PHONY: all
 all: clean lint build
-	git config core.hookspath | \
-		grep -q src/git || \
-		git config core.hookspath src/git
 
-.PHONY: build
 build: ${DENO}
 	${DENO} run -A src/cmd/build.ts
 	${DENO} run -A npm:typescript/tsc
@@ -16,26 +11,25 @@ build: ${DENO}
 	tar -zc -C dist/node -f dist/jotjs.tgz .
 	rm -r dist/node
 
-.PHONY: clean
 clean:
 	rm -rf dist
 
-.PHONY: example
 example: ${DENO}
 	${DENO} run -A src/cmd/example.ts
 
-.PHONY: format
-format: ${DENO}
+format: node_modules
 	${DENO} run -A npm:prettier --write .
 
-.PHONY: lint
-lint: ${DENO}
+lint: node_modules
 	${DENO} run -A npm:prettier --check .
 	${DENO} lint
 
-.PHONY: pre-commit
+node_modules: ${DENO}
+	git config core.hooksPath src/git
+	${DENO} cache npm:prettier npm:typescript/tsc
+
 pre-commit: all
 	git add dist
 
 ${DENO}:
-	${DENO} -v || curl -fsSL https://deno.land/install.sh | sh
+	curl -fsSL https://deno.land/install.sh | sh

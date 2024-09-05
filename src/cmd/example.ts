@@ -1,9 +1,13 @@
 import { context } from "../deps/esbuild.ts";
 
 const server = await (
-  await context({})
+  await context({
+    bundle: true,
+    entryPoints: ["src/example/index.ts"],
+    outdir: "src/example",
+  })
 ).serve({
-  servedir: ".",
+  servedir: "src/example",
   host: "127.0.0.1",
   port: 8080,
 });
