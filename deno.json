@@ -3,6 +3,6 @@
     "lib": ["deno.ns", "esnext", "dom", "dom.iterable"],
     "strict": true
   },
-  "exclude": ["dist"],
+  "exclude": ["dist", "src/example/index.js"],
   "nodeModulesDir": true
 }

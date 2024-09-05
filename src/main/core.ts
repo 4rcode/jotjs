@@ -10,43 +10,43 @@ interface Template {
   raw: readonly string[] | ArrayLike<string>;
 }
 
-export function add(...nodes: (string | Node)[]) {
+export function add(...nodes: unknown[]) {
   let ref: Node;
 
-  const hook = (...nodes: (string | Node)[]) => {
-    element(ref).append(...nodes);
+  const action = (...nodes: unknown[]) => {
+    narrow(ref).append(...nodes.map(toSafeNode));
   };
 
-  return Object.assign(hook, {
+  return Object.assign(action, {
     attach(node: Node) {
       ref = node;
-      hook(...nodes);
+      action(...nodes);
     },
   });
 }
 
 /**
  *
- * @param values
+ * @param attributes
  * @returns
  */
-export function attrs(values?: object) {
+export function attrs(attributes?: object) {
   let ref: Node;
 
-  const hook = (values: object) => {
-    const node = element(ref);
+  const action = (attributes: object) => {
+    const node = narrow(ref);
 
-    for (const [key, value] of Object.entries(values)) {
+    for (const [key, value] of Object.entries(attributes)) {
       node.setAttribute(key, value == null ? "" : String(value));
     }
   };
 
-  return Object.assign(hook, {
+  return Object.assign(action, {
     attach(node: Node) {
       ref = node;
 
-      if (values) {
-        hook(values);
+      if (attributes) {
+        action(attributes);
       }
     },
   });
@@ -58,38 +58,24 @@ export function attrs(values?: object) {
  * @returns
  */
 export function className(...names: string[]) {
-  const nodeRef = ref({
-    attach() {
-      hook(...names);
-    },
-  });
+  let ref: Node;
 
-  const hook = (...names: string[]) => {
-    const node = element(nodeRef());
+  const action = (...names: string[]) => {
+    const node = narrow(ref);
 
     for (const name of names) {
-      const tokens = name.split(/\s+/);
-
-      for (const token of tokens) {
+      for (const token of name.split(/\s+/)) {
         node.classList.add(token);
       }
     }
   };
 
-  return Object.assign(hook, nodeRef);
-}
-
-/**
- *
- * @param node
- * @returns
- */
-export function element<E extends Element>(node: Node) {
-  if (node instanceof Element) {
-    return node as E;
-  }
-
-  throw new Error("node must be an Element");
+  return Object.assign(action, {
+    attach(node: Node) {
+      ref = node;
+      action(...names);
+    },
+  });
 }
 
 /**
@@ -97,35 +83,32 @@ export function element<E extends Element>(node: Node) {
  * @param nodes
  * @returns
  */
-export function fragment(...nodes: (string | Node)[]) {
+export function fragment(...nodes: unknown[]) {
   const fragment = document.createDocumentFragment();
 
-  fragment.append(...nodes);
+  fragment.append(...nodes.map(toSafeNode));
 
   return fragment;
 }
 
 /**
  *
+ * @param node
  * @param hooks
  * @returns
  */
-export function func(...hooks: ((node: Node) => void)[]) {
-  const nodeRef = ref({
-    attach() {
-      hook(...hooks);
-    },
-  });
-
-  const hook = (...hooks: ((node: Node) => void)[]) => {
-    const node = nodeRef();
-
+export function hook<N extends Node>(node: Node, ...hooks: Hook[]) {
+  const action = (...hooks: Hook[]) => {
     for (const hook of hooks) {
-      hook(node);
+      hook.attach(node);
     }
+
+    return node as N;
   };
 
-  return Object.assign(hook, nodeRef);
+  action(...hooks);
+
+  return action;
 }
 
 /**
@@ -135,12 +118,12 @@ export function func(...hooks: ((node: Node) => void)[]) {
  * @returns
  */
 export function html(template: Template, ...substitutions: unknown[]) {
-  const hooks: (string | Hook)[] = substitutions.map((item) => {
+  const hooks: Hook[] = substitutions.map((item) => {
     switch (typeof item) {
       case "function":
       case "object":
         if (item == null) {
-          return "";
+          return slot(item);
         }
 
         if ("attach" in item) {
@@ -160,19 +143,15 @@ export function html(template: Template, ...substitutions: unknown[]) {
         }
 
         return attrs(item);
-      default:
-        return slot(String(item));
     }
+
+    return slot(item);
   });
 
   if (!templates.has(template)) {
     let i = 0;
 
     const placeholders = hooks.map((hook) => {
-      if (typeof hook === "string") {
-        return hook;
-      }
-
       const reference = PREFIX + i++;
 
       if (hook.render) {
@@ -219,6 +198,19 @@ export function html(template: Template, ...substitutions: unknown[]) {
 
 /**
  *
+ * @param node
+ * @returns
+ */
+export function narrow<E extends Element>(node: Node) {
+  if (node instanceof Element) {
+    return node as E;
+  }
+
+  throw new Error("node must be an Element");
+}
+
+/**
+ *
  * @param type
  * @param listener
  * @param options
@@ -248,40 +240,43 @@ export function on(
   listener: EventListenerOrEventListenerObject,
   options?: boolean | AddEventListenerOptions,
 ): Hook {
-  return func((node: Node) => node.addEventListener(type, listener, options));
+  return {
+    attach(node) {
+      node.addEventListener(type, listener, options);
+    },
+  };
 }
 
-export function props<T extends keyof HTMLElementTagNameMap>(
-  _tag: T,
-  values?: Partial<HTMLElementTagNameMap[T]>,
-) {
-  const nodeRef = ref({
-    attach() {
-      if (values) {
-        hook(values);
+export function props<N extends Node>(properties?: Partial<N>) {
+  let ref: Node;
+
+  const hook = (properties: Partial<N>) => {
+    Object.assign(ref, properties);
+  };
+
+  return Object.assign(hook, {
+    attach(node: Node) {
+      ref = node;
+      if (properties) {
+        hook(properties);
       }
     },
   });
-
-  const hook = (values: Partial<HTMLElementTagNameMap[T]>) => {
-    Object.assign(nodeRef(), values);
-  };
-
-  return Object.assign(hook, nodeRef);
 }
 
-export function put(...nodes: (string | Node)[]) {
-  const nodeRef = ref({
-    attach() {
-      hook(...nodes);
-    },
-  });
+export function put(...nodes: unknown[]) {
+  let ref: Node;
 
-  const hook = (...nodes: (string | Node)[]) => {
-    element(nodeRef()).replaceChildren(...nodes);
+  const action = (...nodes: unknown[]) => {
+    narrow(ref).replaceChildren(...nodes.map(toSafeNode));
   };
 
-  return Object.assign(hook, nodeRef);
+  return Object.assign(action, {
+    attach(node: Node) {
+      ref = node;
+      action(...nodes);
+    },
+  });
 }
 
 /**
@@ -290,24 +285,19 @@ export function put(...nodes: (string | Node)[]) {
  * @returns
  */
 export function ref<N extends Node>(...hooks: Hook[]) {
-  let ref: N;
+  let ref: (...hooks: Hook[]) => N;
 
-  const hook = (...hooks: Hook[]) => {
+  const action = (...hooks: Hook[]) => {
     if (ref == null) {
       throw new Error("ref cannot be null");
     }
 
-    for (const hook of hooks) {
-      hook.attach(ref);
-    }
-
-    return ref;
+    return ref(...hooks);
   };
 
-  return Object.assign(hook, {
+  return Object.assign(action, {
     attach(node: Node) {
-      ref = node as N;
-      hook(...hooks);
+      ref = hook(node as N, ...hooks);
     },
   });
 }
@@ -317,10 +307,10 @@ export function ref<N extends Node>(...hooks: Hook[]) {
  * @param nodes
  * @returns
  */
-export function slot(...nodes: (string | Node)[]): Hook {
+export function slot(...nodes: unknown[]): Hook {
   return {
     attach(node: Node) {
-      element(node).replaceWith(...nodes);
+      narrow(node).replaceWith(...nodes.map(toSafeNode));
     },
     render(ref: string) {
       return `<br ${ref}/>`;
@@ -336,11 +326,28 @@ export function slot(...nodes: (string | Node)[]): Hook {
 export function text(value?: unknown) {
   const text = document.createTextNode("");
 
-  const hook = (value: unknown) => {
+  const action = (value: unknown) => {
     text.textContent = value == null ? null : String(value);
   };
 
-  hook(value);
+  action(value);
 
-  return Object.assign(hook, slot(text));
+  return Object.assign(action, slot(text));
+}
+
+/**
+ *
+ * @param node
+ * @returns
+ */
+export function toSafeNode(node: unknown) {
+  if (typeof node === "string") {
+    return node;
+  }
+
+  if (node instanceof Node) {
+    return node;
+  }
+
+  return String(node);
 }

@@ -1,36 +1,37 @@
-import { on } from "../main/core.ts";
-import { add, html, ref } from "../main/jot.ts";
+import { add, html, on, put, ref } from "../main/jot.ts";
 
 function App() {
   const addTodos = add();
-  const todoInput: () => HTMLInputElement = ref();
+  const todoInputRef = ref<HTMLInputElement>();
 
   const onClick = on("click", () => {
-    const item: () => Element = ref();
-    const label: () => HTMLElement = ref();
+    const todoRef = ref();
+    const labelRef = ref<HTMLElement>();
 
-    const onCompleteClick = on("click", () => {
-      const i = label();
+    const completeOnClick = on("click", () => {
+      const label = labelRef();
 
-      i.style.textDecoration = i.style.textDecoration ? "" : "line-through";
+      label.style.textDecoration = label.style.textDecoration
+        ? ""
+        : "line-through";
     });
 
-    const onDeleteClick = on("click", () => {
-      item().replaceWith();
+    const deleteOnClick = on("click", () => {
+      todoRef(put());
     });
 
     addTodos(html`
-      <div ${item}>
-        <button ${onCompleteClick}>C</button>
-        <button ${onDeleteClick}>X</button>
-        <span ${label}>${todoInput().value}</span>
+      <div ${todoRef}>
+        <button ${completeOnClick}>C</button>
+        <button ${deleteOnClick}>X</button>
+        <span ${labelRef}>${todoInputRef().value}</span>
       </div>
     `);
   });
 
   return html`
     <h1>TODO LIST</h1>
-    <input ${todoInput} />
+    <input ${todoInputRef} />
     <button ${onClick}>click me</button>
     <div ${addTodos}></div>
   `;
