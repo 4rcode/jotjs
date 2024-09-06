@@ -1,39 +1,37 @@
-import { add, html, on, put, ref } from "../main/jot.ts";
+import { html, on, ref } from "../main/jot.ts";
 
 function App() {
-  const addTodos = add();
-  const todoInputRef = ref<HTMLInputElement>();
+  const list = ref();
+  const input = ref<HTMLInputElement>();
 
   const onClick = on("click", () => {
-    const todoRef = ref();
-    const labelRef = ref<HTMLElement>();
+    const todo = ref();
+    const label = ref();
 
     const completeOnClick = on("click", () => {
-      const label = labelRef();
-
       label.style.textDecoration = label.style.textDecoration
         ? ""
         : "line-through";
     });
 
     const deleteOnClick = on("click", () => {
-      todoRef(put());
+      todo.replaceChildren();
     });
 
-    addTodos(html`
-      <div ${todoRef}>
+    list.append(html`
+      <div ${todo}>
         <button ${completeOnClick}>C</button>
         <button ${deleteOnClick}>X</button>
-        <span ${labelRef}>${todoInputRef().value}</span>
+        <span ${label}>${input.value}</span>
       </div>
     `);
   });
 
   return html`
     <h1>TODO LIST</h1>
-    <input ${todoInputRef} />
+    <input ${input} />
     <button ${onClick}>click me</button>
-    <div ${addTodos}></div>
+    <div ${list}></div>
   `;
 }
 

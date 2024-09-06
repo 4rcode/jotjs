@@ -1,43 +1,31 @@
 declare module "core" {
-    interface Hook {
-        attach(node: Node): void;
-        render?(reference: string): string;
+    /**
+     *
+     */
+    export interface Hook {
+        jot: {
+            attach(element: Element): void;
+            render?(reference: string): string;
+        };
     }
-    interface Template {
+    /**
+     *
+     */
+    export interface Template {
         raw: readonly string[] | ArrayLike<string>;
     }
-    export function add(...nodes: unknown[]): ((...nodes: unknown[]) => void) & {
-        attach(node: Node): void;
-    };
     /**
      *
      * @param attributes
      * @returns
      */
-    export function attrs(attributes?: object): ((attributes: object) => void) & {
-        attach(node: Node): void;
-    };
+    export function attr(attributes?: object): ((attributes: object) => void) & Hook;
     /**
      *
      * @param names
      * @returns
      */
-    export function className(...names: string[]): ((...names: string[]) => void) & {
-        attach(node: Node): void;
-    };
-    /**
-     *
-     * @param nodes
-     * @returns
-     */
-    export function fragment(...nodes: unknown[]): DocumentFragment;
-    /**
-     *
-     * @param node
-     * @param hooks
-     * @returns
-     */
-    export function hook<N extends Node>(node: Node, ...hooks: Hook[]): (...hooks: Hook[]) => N;
+    export function className(strategy: "add" | "remove" | "toggle", ...names: string[]): ((...names: string[]) => void) & Hook;
     /**
      *
      * @param template
@@ -47,18 +35,12 @@ declare module "core" {
     export function html(template: Template, ...substitutions: unknown[]): DocumentFragment;
     /**
      *
-     * @param node
-     * @returns
-     */
-    export function narrow<E extends Element>(node: Node): E;
-    /**
-     *
      * @param type
      * @param listener
      * @param options
      * @returns
      */
-    export function on<E extends HTMLElement, T extends keyof HTMLElementEventMap>(type: T, listener: (this: E, event: HTMLElementEventMap[T]) => void, options?: boolean | AddEventListenerOptions): Hook;
+    export function on<T extends keyof HTMLElementEventMap, E extends HTMLElement = HTMLElement>(type: T, listener: (this: E, event: HTMLElementEventMap[T]) => void, options?: boolean | AddEventListenerOptions): Hook;
     /**
      *
      * @param type
@@ -67,20 +49,18 @@ declare module "core" {
      * @returns
      */
     export function on(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): Hook;
-    export function props<N extends Node>(properties?: Partial<N>): ((properties: Partial<N>) => void) & {
-        attach(node: Node): void;
-    };
-    export function put(...nodes: unknown[]): ((...nodes: unknown[]) => void) & {
-        attach(node: Node): void;
-    };
     /**
      *
      * @param hooks
      * @returns
      */
-    export function ref<N extends Node>(...hooks: Hook[]): ((...hooks: Hook[]) => N) & {
-        attach(node: Node): void;
-    };
+    export function ref<E extends Element = HTMLElement>(...hooks: Hook[]): E & Hook;
+    /**
+     *
+     * @param properties
+     * @returns
+     */
+    export function set<E extends Element = HTMLElement>(properties?: Partial<E>): ((properties: Partial<E>) => void) & Hook;
     /**
      *
      * @param nodes
@@ -89,16 +69,16 @@ declare module "core" {
     export function slot(...nodes: unknown[]): Hook;
     /**
      *
-     * @param value
-     * @returns
-     */
-    export function text(value?: unknown): ((value: unknown) => void) & Hook;
-    /**
-     *
      * @param node
      * @returns
      */
-    export function toSafeNode(node: unknown): string | Node;
+    export function toNode(node: unknown): string | Node;
+    /**
+     *
+     * @param nodes
+     * @returns
+     */
+    export function wrap(...nodes: unknown[]): DocumentFragment;
 }
 declare module "css" {
     interface Template {

@@ -1,28 +1,21 @@
 const PREFIX = "x";
 const templates = new Map<Template, DocumentFragment>();
 
-interface Hook {
-  attach(node: Node): void;
-  render?(reference: string): string;
-}
-
-interface Template {
-  raw: readonly string[] | ArrayLike<string>;
-}
-
-export function add(...nodes: unknown[]) {
-  let ref: Node;
-
-  const action = (...nodes: unknown[]) => {
-    narrow(ref).append(...nodes.map(toSafeNode));
+/**
+ *
+ */
+export interface Hook {
+  jot: {
+    attach(element: Element): void;
+    render?(reference: string): string;
   };
+}
 
-  return Object.assign(action, {
-    attach(node: Node) {
-      ref = node;
-      action(...nodes);
-    },
-  });
+/**
+ *
+ */
+export interface Template {
+  raw: readonly string[] | ArrayLike<string>;
 }
 
 /**
@@ -30,24 +23,24 @@ export function add(...nodes: unknown[]) {
  * @param attributes
  * @returns
  */
-export function attrs(attributes?: object) {
-  let ref: Node;
+export function attr(attributes?: object) {
+  let ref: Element;
 
   const action = (attributes: object) => {
-    const node = narrow(ref);
-
-    for (const [key, value] of Object.entries(attributes)) {
-      node.setAttribute(key, value == null ? "" : String(value));
+    for (const [name, value] of Object.entries(attributes)) {
+      ref.setAttribute(name, value == null ? "" : String(value));
     }
   };
 
-  return Object.assign(action, {
-    attach(node: Node) {
-      ref = node;
+  return Object.assign(action, <Hook>{
+    jot: {
+      attach(element) {
+        ref = element;
 
-      if (attributes) {
-        action(attributes);
-      }
+        if (attributes) {
+          action(attributes);
+        }
+      },
     },
   });
 }
@@ -57,58 +50,38 @@ export function attrs(attributes?: object) {
  * @param names
  * @returns
  */
-export function className(...names: string[]) {
-  let ref: Node;
+export function className(
+  strategy: "add" | "remove" | "toggle",
+  ...names: string[]
+) {
+  let ref: Element;
 
   const action = (...names: string[]) => {
-    const node = narrow(ref);
-
     for (const name of names) {
       for (const token of name.split(/\s+/)) {
-        node.classList.add(token);
+        switch (strategy) {
+          case "add":
+            ref.classList.add(token);
+            continue;
+          case "remove":
+            ref.classList.remove(token);
+            continue;
+          case "toggle":
+            ref.classList.toggle(token);
+            continue;
+        }
       }
     }
   };
 
-  return Object.assign(action, {
-    attach(node: Node) {
-      ref = node;
-      action(...names);
+  return Object.assign(action, <Hook>{
+    jot: {
+      attach(element) {
+        ref = element;
+        action(...names);
+      },
     },
   });
-}
-
-/**
- *
- * @param nodes
- * @returns
- */
-export function fragment(...nodes: unknown[]) {
-  const fragment = document.createDocumentFragment();
-
-  fragment.append(...nodes.map(toSafeNode));
-
-  return fragment;
-}
-
-/**
- *
- * @param node
- * @param hooks
- * @returns
- */
-export function hook<N extends Node>(node: Node, ...hooks: Hook[]) {
-  const action = (...hooks: Hook[]) => {
-    for (const hook of hooks) {
-      hook.attach(node);
-    }
-
-    return node as N;
-  };
-
-  action(...hooks);
-
-  return action;
 }
 
 /**
@@ -126,7 +99,7 @@ export function html(template: Template, ...substitutions: unknown[]) {
           return slot(item);
         }
 
-        if ("attach" in item) {
+        if ("jot" in item) {
           return item as Hook;
         }
 
@@ -135,14 +108,16 @@ export function html(template: Template, ...substitutions: unknown[]) {
         }
 
         if (item instanceof Function) {
-          return {
-            attach(node) {
-              item(node);
+          return <Hook>{
+            jot: {
+              attach(node) {
+                item(node);
+              },
             },
           };
         }
 
-        return attrs(item);
+        return attr(item);
     }
 
     return slot(item);
@@ -154,8 +129,8 @@ export function html(template: Template, ...substitutions: unknown[]) {
     const placeholders = hooks.map((hook) => {
       const reference = PREFIX + i++;
 
-      if (hook.render) {
-        return hook.render(reference);
+      if (hook.jot.render) {
+        return hook.jot.render(reference);
       }
 
       return reference;
@@ -178,10 +153,6 @@ export function html(template: Template, ...substitutions: unknown[]) {
   let i = 0;
 
   for (const hook of hooks) {
-    if (typeof hook === "string") {
-      continue;
-    }
-
     const reference = PREFIX + i++;
     const element = node.querySelector(`[${reference}]`);
 
@@ -190,23 +161,10 @@ export function html(template: Template, ...substitutions: unknown[]) {
     }
 
     element.removeAttribute(reference);
-    hook.attach(element);
+    hook.jot.attach(element);
   }
 
   return node;
-}
-
-/**
- *
- * @param node
- * @returns
- */
-export function narrow<E extends Element>(node: Node) {
-  if (node instanceof Element) {
-    return node as E;
-  }
-
-  throw new Error("node must be an Element");
 }
 
 /**
@@ -216,7 +174,10 @@ export function narrow<E extends Element>(node: Node) {
  * @param options
  * @returns
  */
-export function on<E extends HTMLElement, T extends keyof HTMLElementEventMap>(
+export function on<
+  T extends keyof HTMLElementEventMap,
+  E extends HTMLElement = HTMLElement,
+>(
   type: T,
   listener: (this: E, event: HTMLElementEventMap[T]) => void,
   options?: boolean | AddEventListenerOptions,
@@ -239,44 +200,14 @@ export function on(
   type: string,
   listener: EventListenerOrEventListenerObject,
   options?: boolean | AddEventListenerOptions,
-): Hook {
-  return {
-    attach(node) {
-      node.addEventListener(type, listener, options);
+) {
+  return <Hook>{
+    jot: {
+      attach(element) {
+        element.addEventListener(type, listener, options);
+      },
     },
   };
-}
-
-export function props<N extends Node>(properties?: Partial<N>) {
-  let ref: Node;
-
-  const hook = (properties: Partial<N>) => {
-    Object.assign(ref, properties);
-  };
-
-  return Object.assign(hook, {
-    attach(node: Node) {
-      ref = node;
-      if (properties) {
-        hook(properties);
-      }
-    },
-  });
-}
-
-export function put(...nodes: unknown[]) {
-  let ref: Node;
-
-  const action = (...nodes: unknown[]) => {
-    narrow(ref).replaceChildren(...nodes.map(toSafeNode));
-  };
-
-  return Object.assign(action, {
-    attach(node: Node) {
-      ref = node;
-      action(...nodes);
-    },
-  });
 }
 
 /**
@@ -284,20 +215,61 @@ export function put(...nodes: unknown[]) {
  * @param hooks
  * @returns
  */
-export function ref<N extends Node>(...hooks: Hook[]) {
-  let ref: (...hooks: Hook[]) => N;
+export function ref<E extends Element = HTMLElement>(...hooks: Hook[]) {
+  let ref: Element;
 
-  const action = (...hooks: Hook[]) => {
-    if (ref == null) {
-      throw new Error("ref cannot be null");
-    }
+  return new Proxy(
+    {
+      jot: {
+        attach(element) {
+          ref = element;
 
-    return ref(...hooks);
+          for (const hook of hooks) {
+            hook.jot.attach(element);
+          }
+        },
+      },
+    } as E & Hook,
+    {
+      get(target, property, receiver) {
+        if (property === "jot") {
+          return Reflect.get(target, property, receiver);
+        }
+
+        return Reflect.get(ref, property, ref);
+      },
+      set(_, property, value) {
+        if (property === "jot") {
+          return false;
+        }
+
+        return Reflect.set(ref, property, value, ref);
+      },
+    },
+  );
+}
+
+/**
+ *
+ * @param properties
+ * @returns
+ */
+export function set<E extends Element = HTMLElement>(properties?: Partial<E>) {
+  let ref: Element;
+
+  const action = (properties: Partial<E>) => {
+    Object.assign(ref, properties);
   };
 
-  return Object.assign(action, {
-    attach(node: Node) {
-      ref = hook(node as N, ...hooks);
+  return Object.assign(action, <Hook>{
+    jot: {
+      attach(element) {
+        ref = element;
+
+        if (properties) {
+          action(properties);
+        }
+      },
     },
   });
 }
@@ -307,32 +279,17 @@ export function ref<N extends Node>(...hooks: Hook[]) {
  * @param nodes
  * @returns
  */
-export function slot(...nodes: unknown[]): Hook {
-  return {
-    attach(node: Node) {
-      narrow(node).replaceWith(...nodes.map(toSafeNode));
-    },
-    render(ref: string) {
-      return `<br ${ref}/>`;
+export function slot(...nodes: unknown[]) {
+  return <Hook>{
+    jot: {
+      attach(element) {
+        element.replaceWith(...nodes.map(toNode));
+      },
+      render(ref) {
+        return `<br ${ref}/>`;
+      },
     },
   };
-}
-
-/**
- *
- * @param value
- * @returns
- */
-export function text(value?: unknown) {
-  const text = document.createTextNode("");
-
-  const action = (value: unknown) => {
-    text.textContent = value == null ? null : String(value);
-  };
-
-  action(value);
-
-  return Object.assign(action, slot(text));
 }
 
 /**
@@ -340,7 +297,7 @@ export function text(value?: unknown) {
  * @param node
  * @returns
  */
-export function toSafeNode(node: unknown) {
+export function toNode(node: unknown) {
   if (typeof node === "string") {
     return node;
   }
@@ -350,4 +307,17 @@ export function toSafeNode(node: unknown) {
   }
 
   return String(node);
+}
+
+/**
+ *
+ * @param nodes
+ * @returns
+ */
+export function wrap(...nodes: unknown[]) {
+  const fragment = document.createDocumentFragment();
+
+  fragment.append(...nodes.map(toNode));
+
+  return fragment;
 }
