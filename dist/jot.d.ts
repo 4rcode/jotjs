@@ -2,30 +2,12 @@ declare module "core" {
     /**
      *
      */
-    export interface Hook {
-        jot: {
-            attach(element: Element): void;
-            render?(reference: string): string;
-        };
+    export interface Hook<E extends Element = HTMLElement> {
+        (element: E): void;
     }
-    /**
-     *
-     */
-    export interface Template {
+    interface Template {
         raw: readonly string[] | ArrayLike<string>;
     }
-    /**
-     *
-     * @param attributes
-     * @returns
-     */
-    export function attr(attributes?: object): ((attributes: object) => void) & Hook;
-    /**
-     *
-     * @param names
-     * @returns
-     */
-    export function className(strategy: "add" | "remove" | "toggle", ...names: string[]): ((...names: string[]) => void) & Hook;
     /**
      *
      * @param template
@@ -40,7 +22,7 @@ declare module "core" {
      * @param options
      * @returns
      */
-    export function on<T extends keyof HTMLElementEventMap, E extends HTMLElement = HTMLElement>(type: T, listener: (this: E, event: HTMLElementEventMap[T]) => void, options?: boolean | AddEventListenerOptions): Hook;
+    export function on<T extends keyof HTMLElementEventMap, E extends HTMLElement = HTMLElement>(type: T, listener: (this: E, event: HTMLElementEventMap[T]) => void, options?: boolean | AddEventListenerOptions): Hook<E>;
     /**
      *
      * @param type
@@ -48,37 +30,25 @@ declare module "core" {
      * @param options
      * @returns
      */
-    export function on(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): Hook;
+    export function on<E extends Element = HTMLElement>(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): Hook<E>;
     /**
      *
-     * @param hooks
+     * @param attributes
      * @returns
      */
-    export function ref<E extends Element = HTMLElement>(...hooks: Hook[]): E & Hook;
+    export function put<E extends Element = HTMLElement>(attributes: object): Hook<E>;
+    /**
+     *
+     * @param callbacks
+     * @returns
+     */
+    export function ref<E extends Element = HTMLElement>(...callbacks: Hook<E>[]): [E, (...hooks: Hook<E>[]) => E];
     /**
      *
      * @param properties
      * @returns
      */
-    export function set<E extends Element = HTMLElement>(properties?: Partial<E>): ((properties: Partial<E>) => void) & Hook;
-    /**
-     *
-     * @param nodes
-     * @returns
-     */
-    export function slot(...nodes: unknown[]): Hook;
-    /**
-     *
-     * @param node
-     * @returns
-     */
-    export function toNode(node: unknown): string | Node;
-    /**
-     *
-     * @param nodes
-     * @returns
-     */
-    export function wrap(...nodes: unknown[]): DocumentFragment;
+    export function set<E extends Element = HTMLElement>(properties: Partial<E>): Hook<E>;
 }
 declare module "css" {
     interface Template {

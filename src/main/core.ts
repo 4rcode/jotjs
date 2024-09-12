@@ -1,87 +1,16 @@
-const PREFIX = "x";
+const PREFIX = "E";
+
 const templates = new Map<Template, DocumentFragment>();
 
 /**
  *
  */
-export interface Hook {
-  jot: {
-    attach(element: Element): void;
-    render?(reference: string): string;
-  };
+export interface Hook<E extends Element = HTMLElement> {
+  (element: E): void;
 }
 
-/**
- *
- */
-export interface Template {
+interface Template {
   raw: readonly string[] | ArrayLike<string>;
-}
-
-/**
- *
- * @param attributes
- * @returns
- */
-export function attr(attributes?: object) {
-  let ref: Element;
-
-  const action = (attributes: object) => {
-    for (const [name, value] of Object.entries(attributes)) {
-      ref.setAttribute(name, value == null ? "" : String(value));
-    }
-  };
-
-  return Object.assign(action, <Hook>{
-    jot: {
-      attach(element) {
-        ref = element;
-
-        if (attributes) {
-          action(attributes);
-        }
-      },
-    },
-  });
-}
-
-/**
- *
- * @param names
- * @returns
- */
-export function className(
-  strategy: "add" | "remove" | "toggle",
-  ...names: string[]
-) {
-  let ref: Element;
-
-  const action = (...names: string[]) => {
-    for (const name of names) {
-      for (const token of name.split(/\s+/)) {
-        switch (strategy) {
-          case "add":
-            ref.classList.add(token);
-            continue;
-          case "remove":
-            ref.classList.remove(token);
-            continue;
-          case "toggle":
-            ref.classList.toggle(token);
-            continue;
-        }
-      }
-    }
-  };
-
-  return Object.assign(action, <Hook>{
-    jot: {
-      attach(element) {
-        ref = element;
-        action(...names);
-      },
-    },
-  });
 }
 
 /**
@@ -90,56 +19,52 @@ export function className(
  * @param substitutions
  * @returns
  */
-export function html(template: Template, ...substitutions: unknown[]) {
-  const hooks: Hook[] = substitutions.map((item) => {
-    switch (typeof item) {
-      case "function":
-      case "object":
-        if (item == null) {
-          return slot(item);
-        }
-
-        if ("jot" in item) {
-          return item as Hook;
-        }
-
-        if (item instanceof Node) {
-          return slot(item);
-        }
-
-        if (item instanceof Function) {
-          return <Hook>{
-            jot: {
-              attach(node) {
-                item(node);
-              },
-            },
-          };
-        }
-
-        return attr(item);
+export function html(
+  template: Template,
+  ...substitutions: unknown[]
+): DocumentFragment {
+  const hooks = substitutions.map((item) => {
+    if (typeof item === "function") {
+      return {
+        attach(element: Element) {
+          item(element);
+        },
+        query(fragment: DocumentFragment, attribute: string) {
+          return fragment.querySelector(`[${attribute}]`);
+        },
+        render(attribute: string) {
+          return ` ${attribute} `;
+        },
+      };
     }
 
-    return slot(item);
+    return {
+      attach(element: Element) {
+        element.replaceWith(...nodes(item));
+      },
+      query(fragment: DocumentFragment, id: string) {
+        return fragment.getElementById(id);
+      },
+      render(id: string) {
+        return `<br id="${id}"/>`;
+      },
+    };
   });
 
   if (!templates.has(template)) {
     let i = 0;
 
-    const placeholders = hooks.map((hook) => {
-      const reference = PREFIX + i++;
-
-      if (hook.jot.render) {
-        return hook.jot.render(reference);
-      }
-
-      return reference;
-    });
-
-    const text = String.raw(template, ...placeholders);
-    const fragment = document.createRange().createContextualFragment(text);
-
-    templates.set(template, fragment);
+    templates.set(
+      template,
+      document.createRange().createContextualFragment(
+        String.raw(
+          template,
+          ...hooks.map((hook) => {
+            return hook.render(PREFIX + i++);
+          }),
+        ),
+      ),
+    );
   }
 
   const fragment = templates.get(template);
@@ -153,18 +78,30 @@ export function html(template: Template, ...substitutions: unknown[]) {
   let i = 0;
 
   for (const hook of hooks) {
-    const reference = PREFIX + i++;
-    const element = node.querySelector(`[${reference}]`);
+    const id = PREFIX + i++;
+    const element = hook.query(node, id);
 
     if (!element) {
-      throw new Error("element " + ref + " cannot be found");
+      throw new Error(`element ${id} cannot be found"`);
     }
 
-    element.removeAttribute(reference);
-    hook.jot.attach(element);
+    element.removeAttribute(id);
+    hook.attach(element);
   }
 
   return node;
+}
+
+function nodes(node: unknown): (string | Node)[] {
+  if (typeof node === "string" || node instanceof Node) {
+    return [node];
+  }
+
+  if (node instanceof Array) {
+    return node.flatMap((node) => nodes(node));
+  }
+
+  return [String(node)];
 }
 
 /**
@@ -181,7 +118,7 @@ export function on<
   type: T,
   listener: (this: E, event: HTMLElementEventMap[T]) => void,
   options?: boolean | AddEventListenerOptions,
-): Hook;
+): Hook<E>;
 
 /**
  *
@@ -190,63 +127,85 @@ export function on<
  * @param options
  * @returns
  */
-export function on(
+export function on<E extends Element = HTMLElement>(
   type: string,
   listener: EventListenerOrEventListenerObject,
   options?: boolean | AddEventListenerOptions,
-): Hook;
+): Hook<E>;
 
-export function on(
+export function on<E extends Element = HTMLElement>(
   type: string,
   listener: EventListenerOrEventListenerObject,
   options?: boolean | AddEventListenerOptions,
-) {
-  return <Hook>{
-    jot: {
-      attach(element) {
-        element.addEventListener(type, listener, options);
-      },
-    },
+): Hook<E> {
+  return (element) => {
+    element.addEventListener(type, listener, options);
   };
 }
 
 /**
  *
- * @param hooks
+ * @param attributes
  * @returns
  */
-export function ref<E extends Element = HTMLElement>(...hooks: Hook[]) {
-  let ref: Element;
+export function put<E extends Element = HTMLElement>(
+  attributes: object,
+): Hook<E> {
+  return (element) => {
+    for (const [name, value] of Object.entries(attributes)) {
+      element.setAttribute(name, value == null ? "" : String(value));
+    }
+  };
+}
 
-  return new Proxy(
-    {
-      jot: {
-        attach(element) {
-          ref = element;
+/**
+ *
+ * @param callbacks
+ * @returns
+ */
+export function ref<E extends Element = HTMLElement>(
+  ...callbacks: Hook<E>[]
+): [E, (...hooks: Hook<E>[]) => E] {
+  let ref: E;
 
-          for (const hook of hooks) {
-            hook.jot.attach(element);
+  return [
+    new Proxy(
+      (element: E) => {
+        ref = element;
+
+        for (const callback of callbacks) {
+          callback(ref);
+        }
+      },
+      {
+        get(_, property) {
+          const value = Reflect.get(ref, property, ref);
+
+          if (typeof value === "function") {
+            return value.bind(ref);
           }
+
+          return value;
+        },
+        set(_, property, value) {
+          return Reflect.set(ref, property, value, ref);
         },
       },
-    } as E & Hook,
-    {
-      get(target, property, receiver) {
-        if (property === "jot") {
-          return Reflect.get(target, property, receiver);
-        }
+    ) as unknown as E,
+    (...callbacks: Hook<E>[]) => {
+      if (ref == null) {
+        callbacks.push(...callbacks);
 
-        return Reflect.get(ref, property, ref);
-      },
-      set(_, property, value) {
-        if (property === "jot") {
-          return false;
-        }
+        return ref;
+      }
 
-        return Reflect.set(ref, property, value, ref);
-      },
+      for (const callback of callbacks) {
+        callback(ref);
+      }
+
+      return ref;
     },
-  );
+  ];
 }
 
 /**
@@ -254,70 +213,10 @@ export function ref<E extends Element = HTMLElement>(...hooks: Hook[]) {
  * @param properties
  * @returns
  */
-export function set<E extends Element = HTMLElement>(properties?: Partial<E>) {
-  let ref: Element;
-
-  const action = (properties: Partial<E>) => {
-    Object.assign(ref, properties);
+export function set<E extends Element = HTMLElement>(
+  properties: Partial<E>,
+): Hook<E> {
+  return (element) => {
+    Object.assign(element, properties);
   };
-
-  return Object.assign(action, <Hook>{
-    jot: {
-      attach(element) {
-        ref = element;
-
-        if (properties) {
-          action(properties);
-        }
-      },
-    },
-  });
-}
-
-/**
- *
- * @param nodes
- * @returns
- */
-export function slot(...nodes: unknown[]) {
-  return <Hook>{
-    jot: {
-      attach(element) {
-        element.replaceWith(...nodes.map(toNode));
-      },
-      render(ref) {
-        return `<br ${ref}/>`;
-      },
-    },
-  };
-}
-
-/**
- *
- * @param node
- * @returns
- */
-export function toNode(node: unknown) {
-  if (typeof node === "string") {
-    return node;
-  }
-
-  if (node instanceof Node) {
-    return node;
-  }
-
-  return String(node);
-}
-
-/**
- *
- * @param nodes
- * @returns
- */
-export function wrap(...nodes: unknown[]) {
-  const fragment = document.createDocumentFragment();
-
-  fragment.append(...nodes.map(toNode));
-
-  return fragment;
 }

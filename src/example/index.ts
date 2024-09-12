@@ -1,12 +1,12 @@
-import { html, on, ref } from "../main/jot.ts";
+import { html, on, ref, set } from "../main/jot.ts";
 
 function App() {
-  const list = ref();
-  const input = ref<HTMLInputElement>();
+  const [list] = ref();
+  const [input] = ref<HTMLInputElement>();
 
   const onClick = on("click", () => {
-    const todo = ref();
-    const label = ref();
+    const [todo] = ref();
+    const [label] = ref();
 
     const completeOnClick = on("click", () => {
       label.style.textDecoration = label.style.textDecoration
@@ -15,7 +15,7 @@ function App() {
     });
 
     const deleteOnClick = on("click", () => {
-      todo.replaceChildren();
+      todo.replaceWith();
     });
 
     list.append(html`
@@ -30,8 +30,8 @@ function App() {
   return html`
     <h1>TODO LIST</h1>
     <input ${input} />
-    <button ${onClick}>click me</button>
-    <div ${list}></div>
+    <button ${onClick}>${["click", " ", "me"]}</button>
+    <div ${list} ${set({ className: "foo bar" })}></div>
   `;
 }
 
