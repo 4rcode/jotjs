@@ -6,7 +6,7 @@ export const options: BuildOptions = {
   sourcemap: true,
 };
 
-const files = ["core", "css", "jot"];
+const files = ["jot"];
 
 if (import.meta.main) {
   await Promise.all(

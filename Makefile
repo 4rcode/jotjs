@@ -4,12 +4,12 @@ all: clean lint build
 
 build: ${DENO}
 	${DENO} run -A src/cmd/build.ts
-	${DENO} run -A npm:typescript/tsc
-	mkdir dist/node
-	cp -r src/node/. dist/node
-	cp dist/*js dist/*ts dist/node
-	tar -zc -C dist/node -f dist/jotjs.tgz .
-	rm -r dist/node
+	# ${DENO} run -A npm:typescript/tsc
+	# mkdir dist/node
+	# cp -r src/node/. dist/node
+	# cp dist/*js dist/*ts dist/node
+	# tar -zc -C dist/node -f dist/jotjs.tgz .
+	# rm -r dist/node
 
 clean:
 	rm -rf dist
@@ -26,7 +26,7 @@ lint: node_modules
 
 node_modules: ${DENO}
 	git config core.hooksPath src/git
-	${DENO} cache npm:prettier npm:typescript/tsc
+	${DENO} cache $$(cat deps.txt)
 
 pre-commit: all
 	git add dist

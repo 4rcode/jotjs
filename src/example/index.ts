@@ -1,37 +1,108 @@
-import { html, on, ref, set } from "../main/jot.ts";
+import { css, html, on, ref } from "../main/jot.ts";
+
+css`
+  :where(&, *) {
+    appearance: none;
+    background: none;
+    border: inherit;
+    box-sizing: border-box;
+    color: inherit;
+    font-family: system-ui;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: normal;
+    margin: 0;
+    outline: none;
+    padding-block: 0;
+    padding-inline: 0;
+    padding: 0;
+  }
+
+  :where(&) {
+    border: 0 solid #999;
+    background-color: #eee;
+  }
+`(document.body);
+
+const style = css`
+  & {
+    width: 24rem;
+    margin: 2rem auto;
+    color: #444;
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: lighter;
+    margin: 1rem 0;
+  }
+
+  form {
+    display: flex;
+  }
+
+  input,
+  button {
+    background-color: #ddd;
+    border-width: 0.1rem;
+    margin: 0.25rem;
+    padding: 0.25rem;
+  }
+
+  input {
+    flex-grow: 1;
+  }
+`;
 
 function App() {
-  const [list] = ref();
-  const [input] = ref<HTMLInputElement>();
+  const list = ref();
+  const input = ref<HTMLInputElement>();
 
-  const onClick = on("click", () => {
-    const [todo] = ref();
-    const [label] = ref();
+  const onSubmit = on("click", (event) => {
+    event.preventDefault();
+
+    if (!input.ref.value) {
+      return;
+    }
+
+    const todo = ref();
+    const label = ref();
 
     const completeOnClick = on("click", () => {
-      label.style.textDecoration = label.style.textDecoration
+      label.ref.style.textDecoration = label.ref.style.textDecoration
         ? ""
         : "line-through";
     });
 
     const deleteOnClick = on("click", () => {
-      todo.replaceWith();
+      todo.ref.replaceWith();
     });
 
-    list.append(html`
+    list.ref.append(html`
       <div ${todo}>
-        <button ${completeOnClick}>C</button>
         <button ${deleteOnClick}>X</button>
-        <span ${label}>${input.value}</span>
+        <button ${completeOnClick}>C</button>
+        <span ${label}>${input.ref.value}</span>
       </div>
     `);
+
+    input.ref.value = "";
   });
 
   return html`
-    <h1>TODO LIST</h1>
-    <input ${input} />
-    <button ${onClick}>${["click", " ", "me"]}</button>
-    <div ${list} ${set({ className: "foo bar" })}></div>
+    <div ${style}>
+      <h1>TODO LIST</h1>
+      <form ${onSubmit}>
+        <input
+          ${input}
+          ${(e: HTMLElement) => {
+            e.className = "foobar";
+          }}
+        />
+        <button>Create new todo</button>
+      </form>
+      <div ${list}></div>
+    </div>
   `;
 }
 
