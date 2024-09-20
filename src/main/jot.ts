@@ -1,260 +1,392 @@
-/**
- *
- */
-export interface Hook<E extends Element = HTMLElement> {
-  (element: E): void;
-}
+// /**
+//  *
+//  */
+// export type E<H extends HTMLElement> = Partial<H>;
 
-/**
- *
- */
-export interface Template {
-  raw: readonly string[] | ArrayLike<string>;
-}
+// interface Template {
+//   raw: readonly string[] | ArrayLike<string>;
+// }
 
-const defaultClassNamePrefix = "S";
+// const defaultClassNamePrefix = "S";
 
-let classNamePrefix = defaultClassNamePrefix;
+// let classNamePrefix = defaultClassNamePrefix;
 
-/**
- *
- * @param prefix
- */
-export function setClassNamePrefix(prefix: string) {
-  classNamePrefix = prefix;
-}
+// /**
+//  *
+//  * @param prefix
+//  */
+// export function setClassNamePrefix(prefix: string) {
+//   classNamePrefix = prefix;
+// }
 
-let styleSheet: CSSStyleSheet;
+// let styleSheet: CSSStyleSheet;
 
-/**
- *
- * @param sheet
- */
-export function setStyleSheet(sheet: CSSStyleSheet) {
-  styleSheet = sheet;
-}
+// /**
+//  *
+//  * @param sheet
+//  */
+// export function setStyleSheet(sheet: CSSStyleSheet) {
+//   styleSheet = sheet;
+// }
 
-/**
- *
- * @returns
- */
-export function createStyleSheet() {
-  const style = document.createElement("style");
+// /**
+//  *
+//  * @returns
+//  */
+// export function createStyleSheet() {
+//   const style = document.createElement("style");
 
-  document.head.append(style);
+//   document.head.append(style);
 
-  return style.sheet!;
-}
+//   return style.sheet!;
+// }
 
-let classNameCounter = 0;
+// let classNameCounter = 0;
 
-/**
- *
- * @param style
- * @param substitutions
- * @returns
- */
-export function css<E extends Element = HTMLElement>(
-  style: Template,
-  ...substitutions: unknown[]
-): Hook<E> {
-  const className =
-    (classNamePrefix || defaultClassNamePrefix) + classNameCounter++;
+// /**
+//  *
+//  * @param style
+//  * @param substitutions
+//  * @returns
+//  */
+// export function css(style: Template, ...substitutions: unknown[]) {
+//   const className =
+//     (classNamePrefix || defaultClassNamePrefix) + classNameCounter++;
 
-  (styleSheet || (styleSheet = createStyleSheet())).insertRule(
-    `.${className}{${String.raw(style, ...substitutions)}}`,
-    styleSheet.cssRules.length,
-  );
+//   (styleSheet || (styleSheet = createStyleSheet())).insertRule(
+//     `.${className}{${String.raw(style, ...substitutions)}}`,
+//     styleSheet.cssRules.length,
+//   );
 
-  return (element) => {
-    element.classList.add(className);
-  };
-}
+//   return (element: Element) => {
+//     element!.classList.add(className);
+//   };
+// }
 
-const defaultReferencePrefix = "E";
+// const defaultReferencePrefix = "E";
 
-let referencePrefix = defaultReferencePrefix;
+// let referencePrefix = defaultReferencePrefix;
 
-/**
- *
- * @param prefix
- */
-export function setReferencePrefix(prefix: string) {
-  referencePrefix = prefix;
-}
+// /**
+//  *
+//  * @param prefix
+//  */
+// export function setReferencePrefix(prefix: string) {
+//   referencePrefix = prefix;
+// }
 
-const templates = new Map<Template, DocumentFragment>();
+// const templates = new Map<Template, DocumentFragment>();
 
-/**
- *
- * @param template
- * @param substitutions
- * @returns
- */
-export function html(
-  template: Template,
-  ...substitutions: unknown[]
-): DocumentFragment {
-  const hooks = substitutions.map((item) =>
-    typeof item === "function"
-      ? {
-          attach(element: Element, attribute: string) {
-            element.removeAttribute(attribute);
-            item(element);
-          },
-          query(fragment: DocumentFragment, attribute: string) {
-            return fragment.querySelector(`[${attribute}]`);
-          },
-          render(attribute: string) {
-            return ` ${attribute} `;
-          },
-          ...item,
-        }
-      : {
-          attach(element: Element) {
-            element.replaceWith(...nodes(item));
-          },
-          query(fragment: DocumentFragment, id: string) {
-            return fragment.getElementById(id);
-          },
-          render(id: string) {
-            return `<br id="${id}" />`;
-          },
-        },
-  );
+// export const append = Symbol();
 
-  if (!templates.has(template)) {
-    let i = 0;
+// export type Boh = Partial<
+//   {
+//     [T in keyof HTMLElementTagNameMap]: Partial<
+//       HTMLElementTagNameMap[T] & {
+//         [append]?: Boh[];
+//       }
+//     >;
+//   } & {
+//     [append]: Boh[];
+//   }
+// >;
 
-    templates.set(
-      template,
-      document.createRange().createContextualFragment(
-        String.raw(
-          template,
-          ...hooks.map((hook) => {
-            return hook.render(
-              (referencePrefix || defaultReferencePrefix) + i++,
-            );
-          }),
-        ),
-      ),
-    );
-  }
+// export interface Hook {
+//   (): void;
+// }
 
-  const fragment = templates.get(template)!.cloneNode(true) as DocumentFragment;
+// /**
+//  *
+//  * @param template
+//  * @param substitutions
+//  * @returns
+//  */
+// export function html(
+//   template: Template,
+//   ...substitutions: (string | Node | Boh | Hook)[]
+// ): DocumentFragment {
+//   const hooks = substitutions.map((item) =>
+//     typeof item === "function"
+//       ? {
+//           attach(element: HTMLElement, attribute: string) {
+//             element.removeAttribute(attribute);
+//             item(element);
+//           },
+//           query(fragment: DocumentFragment, attribute: string) {
+//             return fragment.querySelector(`[${attribute}]`) as HTMLElement;
+//           },
+//           render(attribute: string) {
+//             return ` ${attribute} `;
+//           },
+//           ...item,
+//         }
+//       : {
+//           attach(element: HTMLElement) {
+//             element.replaceWith(...nodes(item));
+//           },
+//           query(fragment: DocumentFragment, id: string) {
+//             return fragment.getElementById(id);
+//           },
+//           render(id: string) {
+//             return `<br id="${id}" />`;
+//           },
+//         },
+//   );
 
-  let i = 0;
+//   if (!templates.has(template)) {
+//     let i = 0;
 
-  for (const hook of hooks) {
-    const reference = (referencePrefix || defaultReferencePrefix) + i++;
+//     templates.set(
+//       template,
+//       document.createRange().createContextualFragment(
+//         String.raw(
+//           template,
+//           ...hooks.map((hook) => {
+//             return hook.render(
+//               (referencePrefix || defaultReferencePrefix) + i++,
+//             );
+//           }),
+//         ),
+//       ),
+//     );
+//   }
 
-    hook.attach(hook.query(fragment, reference)!, reference);
-  }
+//   const fragment = templates.get(template)!.cloneNode(true) as DocumentFragment;
+
+//   let i = 0;
+
+//   for (const hook of hooks) {
+//     const reference = (referencePrefix || defaultReferencePrefix) + i++;
+
+//     hook.attach(hook.query(fragment, reference)!, reference);
+//   }
+
+//   return fragment;
+// }
+
+// function nodes(node: unknown): (string | Node)[] {
+//   if (typeof node === "string" || node instanceof Node) {
+//     return [node];
+//   }
+
+//   if (node instanceof Array) {
+//     return node.flatMap((node) => nodes(node));
+//   }
+
+//   return [String(node)];
+// }
+
+// /**
+//  *
+//  * @param type
+//  * @param listener
+//  * @param options
+//  * @returns
+//  */
+// export function on<T extends keyof HTMLElementEventMap, E extends HTMLElement>(
+//   type: T,
+//   listener: (this: E, event: HTMLElementEventMap[T]) => void,
+//   options?: boolean | AddEventListenerOptions,
+// ): Hook;
+
+// /**
+//  *
+//  * @param type
+//  * @param listener
+//  * @param options
+//  * @returns
+//  */
+// export function on(
+//   type: string,
+//   listener: EventListenerOrEventListenerObject,
+//   options?: boolean | AddEventListenerOptions,
+// ): Hook;
+
+// export function on(
+//   type: string,
+//   listener: EventListenerOrEventListenerObject,
+//   options?: boolean | AddEventListenerOptions,
+// ): Hook {
+//   return (element) => {
+//     element.addEventListener(type, listener, options);
+//   };
+// }
+
+// /**
+//  *
+//  * @param hooks
+//  * @returns
+//  */
+// export function ref<E extends HTMLElement>(...hooks: Hook[]) {
+//   const item = Object.assign(
+//     (element: E) => {
+//       item.ref = element;
+
+//       for (const hook of hooks) {
+//         hook(item.ref);
+//       }
+//     },
+//     <{ ref: E; hook(...hooks: Hook[]): E }>{
+//       ref: <E>{},
+//       attach(element: E) {
+//         element.removeAttribute("id");
+//         item(element);
+//       },
+//       hook(...hooks) {
+//         for (const hook of hooks) {
+//           hook(item.ref);
+//         }
+
+//         return item.ref;
+//       },
+//       query(fragment: DocumentFragment, id: string) {
+//         return fragment.getElementById(id);
+//       },
+//       render(id: string) {
+//         return ` id="${id}" `;
+//       },
+//     },
+//   );
+
+//   return item;
+// }
+
+// /**
+//  *
+//  * @param attributes
+//  * @returns
+//  */
+// export function set(attributes: object) {
+//   return (element: Element) => {
+//     for (const [name, value] of Object.entries(attributes)) {
+//       element.setAttribute(name, value == null ? "" : String(value));
+//     }
+//   };
+// }
+
+export const tags = new Proxy(
+  <
+    {
+      [K in keyof HTMLElementTagNameMap]: (
+        ...args: (
+          | string
+          | Node
+          | object[]
+          | Partial<HTMLElementTagNameMap[K]>
+          | ((element: HTMLElementTagNameMap[K]) => void)
+        )[]
+      ) => HTMLElementTagNameMap[K];
+    }
+  >{},
+  {
+    get(target, property, receiver) {
+      if (typeof property === "string") {
+        return (...items: unknown[]) => {
+          const element = document.createElement(property);
+
+          for (const item of items) {
+            switch (typeof item) {
+              case "function":
+                item(element);
+                break;
+              case "string":
+                element.append(item);
+                break;
+              case "object":
+                if (item instanceof Node) {
+                  element.append(item);
+                } else if (item instanceof Array) {
+                  for (const attributes of item) {
+                    for (const [name, value] of Object.entries(attributes)) {
+                      element.setAttribute(
+                        name,
+                        value == null ? "" : String(value),
+                      );
+                    }
+                  }
+                } else {
+                  Object.assign(element, item);
+                }
+
+                break;
+            }
+          }
+
+          return element;
+        };
+      }
+
+      return Reflect.get(target, property, receiver);
+    },
+  },
+);
+
+export function fragment(...nodes: (string | Node)[]) {
+  const fragment = document.createDocumentFragment();
+
+  fragment.append(...nodes);
 
   return fragment;
 }
 
-function nodes(node: unknown): (string | Node)[] {
-  if (typeof node === "string" || node instanceof Node) {
-    return [node];
+export function state<S>(state: S, view?: (state: S) => Node) {
+  if (!view) {
+    view = (state) => text(state);
   }
 
-  if (node instanceof Array) {
-    return node.flatMap((node) => nodes(node));
-  }
+  let range: Range;
 
-  return [String(node)];
-}
+  const spies = new Set<(state: S) => void>();
 
-/**
- *
- * @param type
- * @param listener
- * @param options
- * @returns
- */
-export function on<
-  T extends keyof HTMLElementEventMap,
-  E extends HTMLElement = HTMLElement,
->(
-  type: T,
-  listener: (this: E, event: HTMLElementEventMap[T]) => void,
-  options?: boolean | AddEventListenerOptions,
-): Hook<E>;
+  return Object.assign(
+    Object.defineProperties(
+      (element: HTMLElement) => {
+        const start = text();
+        const end = text();
 
-/**
- *
- * @param type
- * @param listener
- * @param options
- * @returns
- */
-export function on<E extends Element = HTMLElement>(
-  type: string,
-  listener: EventListenerOrEventListenerObject,
-  options?: boolean | AddEventListenerOptions,
-): Hook<E>;
+        element.append(fragment(start, view(state), end));
 
-export function on<E extends Element = HTMLElement>(
-  type: string,
-  listener: EventListenerOrEventListenerObject,
-  options?: boolean | AddEventListenerOptions,
-): Hook<E> {
-  return (element) => {
-    element.addEventListener(type, listener, options);
-  };
-}
+        range = document.createRange();
 
-/**
- *
- * @param hooks
- * @returns
- */
-export function ref<E extends Element = HTMLElement>(...hooks: Hook<E>[]) {
-  const item = Object.assign(
-    (element: E) => {
-      item.ref = element;
+        range.setStartAfter(start);
+        range.setEndBefore(end);
 
-      for (const hook of hooks) {
-        hook(item.ref);
-      }
-    },
-    <{ ref: E; hook(...hooks: Hook<E>[]): E }>{
-      ref: <E>{},
-      attach(element: E) {
-        element.removeAttribute("id");
-        item(element);
+        spies.add((state) => {
+          if (range) {
+            range.deleteContents();
+            range.insertNode(view(state));
+          }
+        });
       },
-      hook(...hooks) {
-        for (const hook of hooks) {
-          hook(item.ref);
-        }
+      {
+        value: {
+          get() {
+            return state;
+          },
+          set(value: S) {
+            state = value;
 
-        return item.ref;
+            for (const spy of spies) {
+              spy(state);
+            }
+          },
+        },
       },
-      query(fragment: DocumentFragment, id: string) {
-        return fragment.getElementById(id);
+    ),
+    {
+      dispose: () => {},
+      spy: (spy: (state: S) => void) => {
+        spies.add(spy);
+
+        return () => {
+          spies.delete(spy);
+        };
       },
-      render(id: string) {
-        return ` id="${id}" `;
-      },
+      value: state,
     },
   );
-
-  return item;
 }
 
-/**
- *
- * @param attributes
- * @returns
- */
-export function set<E extends Element = HTMLElement>(
-  attributes: object,
-): Hook<E> {
-  return (element) => {
-    for (const [name, value] of Object.entries(attributes)) {
-      element.setAttribute(name, value == null ? "" : String(value));
-    }
-  };
+export function text(value?: unknown) {
+  return document.createTextNode(value == null ? "" : String(value));
 }
