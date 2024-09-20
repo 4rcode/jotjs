@@ -264,6 +264,8 @@
 //   };
 // }
 
+const spy = Symbol();
+
 export const tags = new Proxy(
   <
     {
@@ -334,28 +336,33 @@ export function state<S>(state: S, view?: (state: S) => Node) {
     view = (state) => text(state);
   }
 
-  let range: Range;
-
   const spies = new Set<(state: S) => void>();
+
+  const addSpy = (spy: (state: S) => void) => {
+    spies.add(spy);
+
+    return () => {
+      spies.delete(spy);
+    };
+  };
+
+  let disposable: (() => void) | undefined;
 
   return Object.assign(
     Object.defineProperties(
       (element: HTMLElement) => {
         const start = text();
         const end = text();
+        const range = document.createRange();
 
         element.append(fragment(start, view(state), end));
-
-        range = document.createRange();
 
         range.setStartAfter(start);
         range.setEndBefore(end);
 
-        spies.add((state) => {
-          if (range) {
-            range.deleteContents();
-            range.insertNode(view(state));
-          }
+        disposable = addSpy((state) => {
+          range.deleteContents();
+          range.insertNode(view(state));
         });
       },
       {
@@ -374,14 +381,12 @@ export function state<S>(state: S, view?: (state: S) => Node) {
       },
     ),
     {
-      dispose: () => {},
-      spy: (spy: (state: S) => void) => {
-        spies.add(spy);
-
-        return () => {
-          spies.delete(spy);
-        };
+      dispose() {
+        if (disposable) {
+          disposable();
+        }
       },
+      [spy]: addSpy,
       value: state,
     },
   );

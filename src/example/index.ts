@@ -1,24 +1,21 @@
 // import { append, Boh, css, html, ref } from "../main/jot.ts";
 
-import { state, tags } from "../main/jot.ts";
+import { fragment, state, tags } from "../main/jot.ts";
 
 const { button, div } = tags;
 
 function App() {
-  const counter = state(0);
-
-  counter.dispose();
+  const counter = state(0, (value) =>
+    fragment("this is: ", String(value), " ", String(Date.now())),
+  );
 
   return div(
-    div("count: ", counter),
-    button(
-      {
-        onclick: () => {
-          counter.value++;
-        },
+    div(counter),
+    button("click me", {
+      onclick: () => {
+        counter.value++;
       },
-      "click me",
-    ),
+    }),
   );
 }
 
