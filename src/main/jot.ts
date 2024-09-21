@@ -264,8 +264,6 @@
 //   };
 // }
 
-const spy = Symbol();
-
 export const tags = new Proxy(
   <
     {
@@ -332,13 +330,9 @@ export function fragment(...nodes: (string | Node)[]) {
 }
 
 export function state<S>(state: S, view?: (state: S) => Node) {
-  if (!view) {
-    view = (state) => text(state);
-  }
-
   const spies = new Set<(state: S) => void>();
 
-  const addSpy = (spy: (state: S) => void) => {
+  const spy = (spy: (state: S) => void) => {
     spies.add(spy);
 
     return () => {
@@ -346,24 +340,43 @@ export function state<S>(state: S, view?: (state: S) => Node) {
     };
   };
 
-  let disposable: (() => void) | undefined;
+  const disposables = new Set<() => void>();
 
   return Object.assign(
     Object.defineProperties(
       (element: HTMLElement) => {
+        if (!view) {
+          const slot = text(state);
+
+          element.append(slot);
+
+          disposables.add(
+            spy((state) => {
+              slot.textContent = String(state);
+            }),
+          );
+
+          return;
+        }
+
         const start = text();
         const end = text();
         const range = document.createRange();
+        const frag = fragment(start, view(state), end);
 
-        element.append(fragment(start, view(state), end));
+        element.append(frag);
 
         range.setStartAfter(start);
         range.setEndBefore(end);
 
-        disposable = addSpy((state) => {
-          range.deleteContents();
-          range.insertNode(view(state));
-        });
+        disposables.add(
+          spy((state) => {
+            // const tmp = frag;
+            // frag = fragment(view(state));
+            range.deleteContents();
+            range.insertNode(view(state));
+          }),
+        );
       },
       {
         value: {
@@ -382,11 +395,12 @@ export function state<S>(state: S, view?: (state: S) => Node) {
     ),
     {
       dispose() {
-        if (disposable) {
-          disposable();
+        for (const dispose of disposables) {
+          dispose();
+          disposables.delete(dispose);
         }
       },
-      [spy]: addSpy,
+      spy,
       value: state,
     },
   );
