@@ -9,6 +9,15 @@ function App() {
     fragment("this is: ", String(value), " ", String(Date.now())),
   );
 
+  // const foo = state("");
+  // const bar = state(0);
+
+  // const _foobar = view(
+  //   () => fragment(div("foo"), "bar", "foobar", "foobar"),
+  //   foo,
+  //   bar,
+  // );
+
   return div(
     div(counter),
     button("click me", {
