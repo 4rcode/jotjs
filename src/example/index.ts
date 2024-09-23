@@ -1,30 +1,20 @@
-// import { append, Boh, css, html, ref } from "../main/jot.ts";
+import { $, tags, use, view } from "../main/jot.ts";
 
-import { fragment, state, tags } from "../main/jot.ts";
-
-const { button, div } = tags;
+const { button } = tags;
 
 function App() {
-  const counter = state(0, (value) =>
-    fragment("this is: ", String(value), " ", String(Date.now())),
-  );
+  const counter = use(0);
 
-  // const foo = state("");
-  // const bar = state(0);
-
-  // const _foobar = view(
-  //   () => fragment(div("foo"), "bar", "foobar", "foobar"),
-  //   foo,
-  //   bar,
-  // );
-
-  return div(
-    div(counter),
+  return $(
     button("click me", {
       onclick: () => {
         counter.value++;
       },
     }),
+    " => ",
+    counter,
+    " >>> ",
+    view(() => (counter.value > 3 ? "done" : "undone"), counter),
   );
 }
 

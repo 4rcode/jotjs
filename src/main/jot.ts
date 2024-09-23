@@ -1,15 +1,29 @@
 /**
  *
  */
+export interface Callback<E extends HTMLElement> {
+  (element: E): void;
+}
+
+/**
+ *
+ */
 export interface Disposable {
-  (): void;
+  dispose(): void;
+}
+
+/**
+ *
+ */
+export interface Hook<E extends HTMLElement> {
+  hook(element: E): void;
 }
 
 /**
  *
  */
 export interface Observable<V> {
-  (observer: Observer<V>): Disposable;
+  add(observer: Observer<V>): Disposable;
   value: V;
 }
 
@@ -20,232 +34,229 @@ export interface Observer<V> {
   (value: V): void;
 }
 
-let win: Window = window;
+/**
+ *
+ */
+export type Option<E extends HTMLElement> =
+  | string
+  | Node
+  | Partial<E>
+  | object[]
+  | Callback<E>
+  | Hook<E>;
 
-export function setWindow(window: Window): void {
-  win = window;
-}
+/**
+ *
+ */
+export type Tags = {
+  [T in keyof HTMLElementTagNameMap]: (
+    ...options: Option<HTMLElementTagNameMap[T]>[]
+  ) => HTMLElementTagNameMap[T];
+};
 
-export function use<V>(value: V, ...observers: Observer<V>[]): Observable<V> {
-  const subscribers = new Set<Observer<V>>(observers);
+/**
+ *
+ * @param options
+ * @returns
+ */
+export function $(...options: unknown[]) {
+  const fragment = jot.createDocumentFragment();
 
-  return Object.assign(
-    Object.defineProperty(
-      (...observers: Observer<V>[]) => {
-        for (const observer of observers) {
-          subscribers.add(observer);
-        }
-
-        return () => {
-          for (const observer of observers) {
-            subscribers.delete(observer);
-          }
-        };
-      },
-      "value",
-      {
-        get() {
-          return value;
-        },
-
-        set(next: V) {
-          if (value === next) {
-            return;
-          }
-
-          value = next;
-
-          for (const publish of subscribers) {
-            publish(value);
-          }
-        },
-      },
-    ),
-    { value },
-  );
-}
-
-export function spy<V>(
-  observer: () => V,
-  ..._observables: Observable<unknown>[]
-): Observable<V> {
-  return use(observer());
-}
-
-export const tags = new Proxy(
-  <
-    {
-      [K in keyof HTMLElementTagNameMap]: (
-        ...args: (
-          | string
-          | Node
-          | object[]
-          | Partial<HTMLElementTagNameMap[K]>
-          | ((element: HTMLElementTagNameMap[K]) => void)
-        )[]
-      ) => HTMLElementTagNameMap[K];
-    }
-  >{},
-  {
-    get(target, property, receiver) {
-      if (typeof property === "string") {
-        return (...items: unknown[]) => {
-          const element = win.document.createElement(property);
-
-          for (const item of items) {
-            switch (typeof item) {
-              case "function":
-                item(element);
-                break;
-              case "string":
-                element.append(item);
-                break;
-              case "object":
-                if (item instanceof Node) {
-                  element.append(item);
-                } else if (item instanceof Array) {
-                  for (const attributes of item) {
-                    for (const [name, value] of Object.entries(attributes)) {
-                      element.setAttribute(
-                        name,
-                        value == null ? "" : String(value),
-                      );
-                    }
-                  }
-                } else {
-                  Object.assign(element, item);
-                }
-
-                break;
-            }
-          }
-
-          return element;
-        };
-      }
-
-      return Reflect.get(target, property, receiver);
-    },
-  },
-);
-
-export function fragment(...nodes: (string | Node)[]) {
-  const fragment = win.document.createDocumentFragment();
-
-  fragment.append(...nodes);
+  for (const option of options) {
+    parse(option, fragment);
+  }
 
   return fragment;
 }
 
-export function state<S>(state: S, view?: (state: S) => Node) {
-  const disposables = new Set<Disposable>();
-  const observers = new Set<Observer<S>>();
+function parse(option: unknown, node: ParentNode): void {
+  if (option == null) {
+    return;
+  }
 
-  const addObserver = (observer: Observer<S>) => {
-    observers.add(observer);
+  switch (typeof option) {
+    case "bigint":
+    case "boolean":
+    case "number":
+    case "symbol":
+      return node.append(String(option));
+    case "string":
+      return node.append(option);
+    case "function":
+      return option(node);
+    case "object":
+      if ("hook" in option && typeof option.hook === "function") {
+        return option.hook(node);
+      }
 
-    return () => {
-      observers.delete(observer);
-    };
-  };
+      if (option instanceof Node) {
+        return node.append(option);
+      }
 
-  return Object.assign(
-    Object.defineProperties(
-      (element: HTMLElement) => {
-        if (!view) {
-          const slot = text(state);
-
-          disposables.add(
-            addObserver((state) => {
-              slot.textContent = state == null ? "" : String(state);
-            }),
-          );
-
-          return element.append(slot);
-        }
-
-        const start = text();
-        const end = text();
-        const range = win.document.createRange();
-        const frag = fragment(start, view(state), end);
-
-        element.append(frag);
-
-        range.setStartAfter(start);
-        range.setEndBefore(end);
-
-        disposables.add(
-          addObserver((state) => {
-            range.deleteContents();
-            range.insertNode(view(state));
-          }),
-        );
-      },
-      {
-        value: {
-          get() {
-            return state;
-          },
-          set(value: S) {
-            state = value;
-
-            for (const observe of observers) {
-              observe(state);
+      if (option instanceof Array) {
+        if (node instanceof HTMLElement) {
+          for (const attributes of option) {
+            for (const [name, value] of Object.entries(attributes)) {
+              if (value == null) {
+                node.removeAttribute(name);
+              } else {
+                node.setAttribute(name, value == null ? "" : String(value));
+              }
             }
-          },
-        },
-      },
-    ),
-    {
-      addObserver,
-      dispose() {
-        for (const dispose of disposables) {
-          dispose();
-          disposables.delete(dispose);
+          }
         }
-      },
-      value: state,
+      } else {
+        Object.assign(node, option);
+      }
+  }
+}
+
+let jot: Document = document;
+
+/**
+ *
+ * @param document
+ */
+export function setDocument(document: Document): void {
+  jot = document;
+}
+
+/**
+ *
+ */
+export const tags = new Proxy(<Tags>{}, {
+  get(target, property, receiver) {
+    if (typeof property !== "string") {
+      return Reflect.get(target, property, receiver);
+    }
+
+    return (...options: unknown[]) => {
+      const element = jot.createElement(property);
+
+      for (const option of options) {
+        parse(option, element);
+      }
+
+      return element;
+    };
+  },
+});
+
+/**
+ *
+ * @param value
+ * @returns
+ */
+export function text(value?: unknown): [Text, (value?: unknown) => void] {
+  const node = jot.createTextNode(value == null ? "" : String(value));
+
+  return [
+    node,
+    (value?: unknown) => {
+      node.textContent = value == null ? "" : String(value);
     },
-  );
+  ];
 }
 
-export function text(value?: unknown) {
-  return win.document.createTextNode(value == null ? "" : String(value));
-}
-
-export function view(
-  _view: () => unknown,
-  ...observables: Observable<unknown>[]
-) {
+/**
+ *
+ * @param value
+ * @param view
+ * @returns
+ */
+export function use<V>(
+  value: V,
+  view?: (value: V) => unknown,
+): Observable<V> & Hook<HTMLElement> & Disposable {
   const disposables = new Set<Disposable>();
-  const observers = new Set<Observer<void>>();
+  const observers = new Set<Observer<V>>();
 
-  const addObserver = (observer: Observer<void>) => {
+  const add = (observer: Observer<V>) => {
     observers.add(observer);
 
-    return () => {
-      observers.delete(observer);
+    return {
+      dispose() {
+        observers.delete(observer);
+      },
     };
   };
 
-  return Object.assign(
-    (_element: HTMLElement) => {
-      const _observer = () => {
-        console.log("changed");
-      };
+  if (view == null) {
+    view = (value: V) => value;
+  }
 
-      for (const _observable of observables) {
-        // observable.addObserver(observer);
+  return {
+    add,
+    dispose() {
+      for (const disposable of disposables) {
+        disposable.dispose();
+        disposables.delete(disposable);
       }
     },
-    {
-      addObserver,
-      dispose() {
-        for (const dispose of disposables) {
-          dispose();
-          disposables.delete(dispose);
-        }
-      },
+    hook(element: HTMLElement) {
+      const data = view(value);
+
+      if (data == null || !(data instanceof Node)) {
+        const [node, set] = text(data);
+
+        disposables.add(add((value) => set(view(value))));
+
+        return element.append(node);
+      }
+
+      const start = jot.createTextNode("");
+      const end = jot.createTextNode("");
+      const range = jot.createRange();
+
+      element.append(start, data, end);
+
+      range.setStartAfter(start);
+      range.setEndBefore(end);
+
+      disposables.add(
+        add((state) => {
+          range.deleteContents();
+          range.insertNode(view(state) as Node);
+        }),
+      );
     },
-  );
+    get value() {
+      return value;
+    },
+
+    set value(next: V) {
+      if (value === next) {
+        return;
+      }
+
+      value = next;
+
+      for (const observe of observers) {
+        observe(value);
+      }
+    },
+  };
+}
+
+/**
+ *
+ * @param map
+ * @param dependencies
+ * @param view
+ * @returns
+ */
+export function view(
+  view: () => unknown,
+  ...dependencies: Observable<unknown>[]
+): Observable<unknown> {
+  const observable = use(view());
+  const observer = () => {
+    observable.value = view();
+  };
+
+  for (const dependency of dependencies) {
+    dependency.add(observer);
+  }
+
+  return observable;
 }
