@@ -1,12 +1,13 @@
-import { $, tags, use, view } from "../main/jot.ts";
+import { $, tags, use } from "../main/jot.ts";
 
-const { button } = tags;
+const { button, div } = tags;
+
+const counter = use(0);
 
 function App() {
-  const counter = use(0);
-
   return $(
     button("click me", {
+      className: "foo",
       onclick: () => {
         counter.value++;
       },
@@ -14,11 +15,11 @@ function App() {
     " => ",
     counter,
     " >>> ",
-    view(() => (counter.value > 3 ? "done" : "undone"), counter),
+    [() => (counter.value > 3 ? "done" : "undone"), counter],
   );
 }
 
-document.body.append(App());
+document.body.append(App(), div("and more...", counter));
 
 // css`
 //   :where(&, *) {
@@ -159,35 +160,3 @@ document.body.append(App());
 //     </div>
 //   `;
 // }
-
-// document.body.append(App());
-
-// function foo(boh: Boh) {
-//   const fragment: ParentNode = document.createDocumentFragment();
-
-//   fragment.append(
-//     ...Object.entries(boh).map(([tag, value]) => {
-//       const element = document.createElement(tag);
-
-//       Object.assign(element, value);
-
-//       if (append in value && value[append]) {
-//         element.append(...value[append].map((p) => foo(p)));
-//       }
-
-//       return element;
-//     }),
-//   );
-
-//   if (append in boh && boh[append]) {
-//     fragment.append(...boh[append].map((p) => foo(p)));
-//   }
-
-//   return fragment;
-// }
-
-// const newLocal = document.createRange();
-
-// newLocal.setStartAfter(node);
-
-// slot(div(), () => {}, a, b, c);

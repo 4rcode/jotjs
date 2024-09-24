@@ -1,8 +1,8 @@
 /**
  *
  */
-export interface Callback<E extends HTMLElement> {
-  (element: E): void;
+export interface Callback<N extends Node> {
+  (node: N): void;
 }
 
 /**
@@ -15,8 +15,8 @@ export interface Disposable {
 /**
  *
  */
-export interface Hook<E extends HTMLElement> {
-  hook(element: E): void;
+export interface Hook<N extends Node> {
+  hook(node: N): void;
 }
 
 /**
@@ -37,13 +37,20 @@ export interface Observer<V> {
 /**
  *
  */
-export type Option<E extends HTMLElement> =
+export type Option<N extends Node> =
+  | bigint
+  | boolean
+  | null
+  | number
   | string
+  | symbol
+  | undefined
   | Node
-  | Partial<E>
-  | object[]
-  | Callback<E>
-  | Hook<E>;
+  | Partial<N>
+  | Callback<N>
+  | Hook<N>
+  | [() => unknown, ...Observable<unknown>[]]
+  | object[];
 
 /**
  *
@@ -59,7 +66,7 @@ export type Tags = {
  * @param options
  * @returns
  */
-export function $(...options: unknown[]) {
+export function $(...options: unknown[]): DocumentFragment {
   const fragment = jot.createDocumentFragment();
 
   for (const option of options) {
@@ -69,7 +76,7 @@ export function $(...options: unknown[]) {
   return fragment;
 }
 
-function parse(option: unknown, node: ParentNode): void {
+function parse(option: unknown, node: ParentNode): unknown {
   if (option == null) {
     return;
   }
@@ -84,7 +91,7 @@ function parse(option: unknown, node: ParentNode): void {
       return node.append(option);
     case "function":
       return option(node);
-    case "object":
+    case "object": {
       if ("hook" in option && typeof option.hook === "function") {
         return option.hook(node);
       }
@@ -93,21 +100,30 @@ function parse(option: unknown, node: ParentNode): void {
         return node.append(option);
       }
 
-      if (option instanceof Array) {
-        if (node instanceof HTMLElement) {
-          for (const attributes of option) {
-            for (const [name, value] of Object.entries(attributes)) {
-              if (value == null) {
-                node.removeAttribute(name);
-              } else {
-                node.setAttribute(name, value == null ? "" : String(value));
-              }
-            }
+      if (!(option instanceof Array)) {
+        return Object.assign(node, option);
+      }
+
+      const [map, ...dependencies] = option;
+
+      if (typeof map === "function") {
+        return view(map, ...dependencies).hook(node);
+      }
+
+      if (!(node instanceof HTMLElement)) {
+        return;
+      }
+
+      for (const attributes of option) {
+        for (const [name, value] of Object.entries(attributes)) {
+          if (value == null) {
+            node.removeAttribute(name);
+          } else {
+            node.setAttribute(name, value == null ? "" : String(value));
           }
         }
-      } else {
-        Object.assign(node, option);
       }
+    }
   }
 }
 
@@ -167,58 +183,40 @@ export function text(value?: unknown): [Text, (value?: unknown) => void] {
 export function use<V>(
   value: V,
   view?: (value: V) => unknown,
-): Observable<V> & Hook<HTMLElement> & Disposable {
-  const disposables = new Set<Disposable>();
-  const observers = new Set<Observer<V>>();
-
-  const add = (observer: Observer<V>) => {
-    observers.add(observer);
-
-    return {
-      dispose() {
-        observers.delete(observer);
-      },
-    };
-  };
-
+): Observable<V> & Hook<ParentNode> & Disposable {
   if (view == null) {
-    view = (value: V) => value;
+    view = (value) => value;
   }
 
+  const observers = new Set<Observer<V>>();
+
   return {
-    add,
-    dispose() {
-      for (const disposable of disposables) {
-        disposable.dispose();
-        disposables.delete(disposable);
-      }
+    add(observer: Observer<V>) {
+      observers.add(observer);
+
+      return {
+        dispose() {
+          observers.delete(observer);
+        },
+      };
     },
-    hook(element: HTMLElement) {
-      const data = view(value);
-
-      if (data == null || !(data instanceof Node)) {
-        const [node, set] = text(data);
-
-        disposables.add(add((value) => set(view(value))));
-
-        return element.append(node);
-      }
-
+    dispose() {
+      observers.clear();
+    },
+    hook(node: ParentNode) {
       const start = jot.createTextNode("");
       const end = jot.createTextNode("");
-      const range = jot.createRange();
 
-      element.append(start, data, end);
+      node.append(start, $(view(value)), end);
 
-      range.setStartAfter(start);
-      range.setEndBefore(end);
+      observers.add((state) => {
+        const range = jot.createRange();
 
-      disposables.add(
-        add((state) => {
-          range.deleteContents();
-          range.insertNode(view(state) as Node);
-        }),
-      );
+        range.setStartAfter(start);
+        range.setEndBefore(end);
+        range.deleteContents();
+        range.insertNode($(view(state)));
+      });
     },
     get value() {
       return value;
@@ -240,23 +238,34 @@ export function use<V>(
 
 /**
  *
- * @param map
- * @param dependencies
  * @param view
+ * @param dependencies
  * @returns
  */
-export function view(
-  view: () => unknown,
+export function view<V>(
+  view: () => V,
   ...dependencies: Observable<unknown>[]
-): Observable<unknown> {
+): Observable<V> & Hook<ParentNode> & Disposable {
   const observable = use(view());
+
   const observer = () => {
     observable.value = view();
   };
 
-  for (const dependency of dependencies) {
-    dependency.add(observer);
-  }
+  const disposables = new Set<Disposable>(
+    dependencies.map((dependency) => dependency.add(observer)),
+  );
+
+  const dispose = observable.dispose;
+
+  observable.dispose = () => {
+    for (const disposable of disposables) {
+      disposable.dispose();
+    }
+
+    disposables.clear();
+    dispose();
+  };
 
   return observable;
 }
