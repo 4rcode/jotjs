@@ -22,9 +22,15 @@ export interface Hook<N extends Node> {
 /**
  *
  */
+export interface Mutable<V> {
+  value: V;
+}
+
+/**
+ *
+ */
 export interface Observable<V> {
   add(observer: Observer<V>): Disposable;
-  value: V;
 }
 
 /**
@@ -104,10 +110,10 @@ function parse(option: unknown, node: ParentNode): unknown {
         return Object.assign(node, option);
       }
 
-      const [map, ...dependencies] = option;
+      const [slot, ...dependencies] = option;
 
-      if (typeof map === "function") {
-        return view(map, ...dependencies).hook(node);
+      if (typeof slot === "function") {
+        return view(slot, ...dependencies).hook(node);
       }
 
       if (!(node instanceof HTMLElement)) {
@@ -183,7 +189,7 @@ export function text(value?: unknown): [Text, (value?: unknown) => void] {
 export function use<V>(
   value: V,
   view?: (value: V) => unknown,
-): Observable<V> & Hook<ParentNode> & Disposable {
+): Mutable<V> & Observable<V> & Hook<ParentNode> & Disposable {
   if (view == null) {
     view = (value) => value;
   }
@@ -256,16 +262,20 @@ export function view<V>(
     dependencies.map((dependency) => dependency.add(observer)),
   );
 
-  const dispose = observable.dispose;
+  return {
+    add(observer) {
+      return observable.add(observer);
+    },
+    dispose() {
+      for (const disposable of disposables) {
+        disposable.dispose();
+      }
 
-  observable.dispose = () => {
-    for (const disposable of disposables) {
-      disposable.dispose();
-    }
-
-    disposables.clear();
-    dispose();
+      disposables.clear();
+      observable.dispose();
+    },
+    hook(node) {
+      observable.hook(node);
+    },
   };
-
-  return observable;
 }
