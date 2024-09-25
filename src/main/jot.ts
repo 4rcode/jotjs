@@ -22,15 +22,9 @@ export interface Hook<N extends Node> {
 /**
  *
  */
-export interface Mutable<V> {
-  value: V;
-}
-
-/**
- *
- */
 export interface Observable<V> {
   add(observer: Observer<V>): Disposable;
+  value: V;
 }
 
 /**
@@ -88,11 +82,6 @@ function parse(option: unknown, node: ParentNode): unknown {
   }
 
   switch (typeof option) {
-    case "bigint":
-    case "boolean":
-    case "number":
-    case "symbol":
-      return node.append(String(option));
     case "string":
       return node.append(option);
     case "function":
@@ -129,8 +118,12 @@ function parse(option: unknown, node: ParentNode): unknown {
           }
         }
       }
+
+      return;
     }
   }
+
+  node.append(String(option));
 }
 
 let jot: Document = document;
@@ -189,7 +182,7 @@ export function text(value?: unknown): [Text, (value?: unknown) => void] {
 export function use<V>(
   value: V,
   view?: (value: V) => unknown,
-): Mutable<V> & Observable<V> & Hook<ParentNode> & Disposable {
+): Observable<V> & Hook<ParentNode> & Disposable {
   if (view == null) {
     view = (value) => value;
   }
@@ -262,20 +255,16 @@ export function view<V>(
     dependencies.map((dependency) => dependency.add(observer)),
   );
 
-  return {
-    add(observer) {
-      return observable.add(observer);
-    },
-    dispose() {
-      for (const disposable of disposables) {
-        disposable.dispose();
-      }
+  const dispose = observable.dispose;
 
-      disposables.clear();
-      observable.dispose();
-    },
-    hook(node) {
-      observable.hook(node);
-    },
+  observable.dispose = () => {
+    for (const disposable of disposables) {
+      disposable.dispose();
+    }
+
+    disposables.clear();
+    dispose();
   };
+
+  return observable;
 }
