@@ -1,7 +1,7 @@
 /**
  *
  */
-export interface Callback<N extends Node> {
+export interface Callback<N> {
   (node: N): void;
 }
 
@@ -15,7 +15,7 @@ export interface Disposable {
 /**
  *
  */
-export interface Hook<N extends Node> {
+export interface Hook<N> {
   hook(node: N): void;
 }
 
@@ -43,8 +43,8 @@ export interface Observer<V> {
 /**
  *
  */
-export type Option<N extends Node> =
-  | [() => unknown, ...Observable<unknown>[]]
+export type Option<N> =
+  | [() => Option<ParentNode>, ...Observable<unknown>[]]
   | bigint
   | boolean
   | Callback<N>
@@ -55,8 +55,8 @@ export type Option<N extends Node> =
   | object[]
   | Partial<N>
   | string
-  | symbol
-  | undefined;
+  | undefined
+  | void;
 
 /**
  *
@@ -72,14 +72,22 @@ export type Tags = {
  * @param options
  * @returns
  */
-export function $(...options: unknown[]): DocumentFragment {
-  const fragment = jot.createDocumentFragment();
+export function $(...options: Option<ParentNode>[]): ParentNode {
+  return jot(doc.createDocumentFragment(), ...options);
+}
 
+/**
+ *
+ * @param node
+ * @param options
+ * @returns
+ */
+export function jot<N extends ParentNode>(node: N, ...options: Option<N>[]): N {
   for (const option of options) {
-    parse(option, fragment);
+    parse(option, node);
   }
 
-  return fragment;
+  return node;
 }
 
 function parse(option: unknown, node: ParentNode): unknown {
@@ -129,116 +137,17 @@ function parse(option: unknown, node: ParentNode): unknown {
     }
   }
 
-  node.append(String(option));
+  return node.append(String(option));
 }
 
-let jot: Document = document;
+let doc: Document = document;
 
 /**
  *
  * @param document
  */
 export function setDocument(document: Document): void {
-  jot = document;
-}
-
-/**
- *
- */
-export const tags = new Proxy(<Tags>{}, {
-  get(target, property, receiver) {
-    if (typeof property !== "string") {
-      return Reflect.get(target, property, receiver);
-    }
-
-    return (...options: unknown[]) => {
-      const element = jot.createElement(property);
-
-      for (const option of options) {
-        parse(option, element);
-      }
-
-      return element;
-    };
-  },
-});
-
-/**
- *
- * @param value
- * @returns
- */
-export function text(value?: unknown): [Text, (value?: unknown) => void] {
-  const node = jot.createTextNode(value == null ? "" : String(value));
-
-  return [
-    node,
-    (value?: unknown) => {
-      node.textContent = value == null ? "" : String(value);
-    },
-  ];
-}
-
-/**
- *
- * @param value
- * @param view
- * @returns
- */
-export function use<V>(
-  value: V,
-  view?: (value: V) => unknown,
-): Mutable<V> & Observable<V> & Hook<ParentNode> & Disposable {
-  if (view == null) {
-    view = (value) => value;
-  }
-
-  const observers = new Set<Observer<V>>();
-
-  return {
-    add(observer: Observer<V>) {
-      observers.add(observer);
-
-      return {
-        dispose() {
-          observers.delete(observer);
-        },
-      };
-    },
-    dispose() {
-      observers.clear();
-    },
-    hook(node: ParentNode) {
-      const start = jot.createTextNode("");
-      const end = jot.createTextNode("");
-
-      node.append(start, $(view(value)), end);
-
-      observers.add((state) => {
-        const range = jot.createRange();
-
-        range.setStartAfter(start);
-        range.setEndBefore(end);
-        range.deleteContents();
-        range.insertNode($(view(state)));
-      });
-    },
-    get value() {
-      return value;
-    },
-
-    set value(next: V) {
-      if (value === next) {
-        return;
-      }
-
-      value = next;
-
-      for (const observe of observers) {
-        observe(value);
-      }
-    },
-  };
+  doc = document;
 }
 
 /**
@@ -270,4 +179,81 @@ export function spy<V>(
       observable.dispose();
     },
   });
+}
+
+/**
+ *
+ */
+export const tags = new Proxy(<Tags>{}, {
+  get(target, property, receiver) {
+    if (typeof property !== "string") {
+      return Reflect.get(target, property, receiver);
+    }
+
+    return (...options: Option<ParentNode>[]) => {
+      return jot(doc.createElement(property), ...options);
+    };
+  },
+});
+
+/**
+ *
+ * @param value
+ * @param view
+ * @returns
+ */
+export function use<V>(
+  value: V,
+  view?: (value: V) => Option<ParentNode>,
+): Mutable<V> & Observable<V> & Hook<ParentNode> & Disposable {
+  if (view == null) {
+    view = (value) => value as Option<ParentNode>;
+  }
+
+  const observers = new Set<Observer<V>>();
+
+  return {
+    add(observer: Observer<V>) {
+      observers.add(observer);
+
+      return {
+        dispose() {
+          observers.delete(observer);
+        },
+      };
+    },
+    dispose() {
+      observers.clear();
+    },
+    hook(node: ParentNode) {
+      const start = doc.createTextNode("");
+      const end = doc.createTextNode("");
+
+      node.append(start, $(view(value)), end);
+
+      observers.add((state) => {
+        const range = doc.createRange();
+
+        range.setStartAfter(start);
+        range.setEndBefore(end);
+        range.deleteContents();
+        range.insertNode($(view(state)));
+      });
+    },
+    get value() {
+      return value;
+    },
+
+    set value(next: V) {
+      if (value === next) {
+        return;
+      }
+
+      value = next;
+
+      for (const observe of observers) {
+        observe(value);
+      }
+    },
+  };
 }

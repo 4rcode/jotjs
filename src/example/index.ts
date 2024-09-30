@@ -2,7 +2,7 @@ import { $, tags, use } from "../main/jot.ts";
 
 const { button, div } = tags;
 
-const counter = use(0);
+const counter = use(0, (v) => div("foo => ", v));
 
 function App() {
   return $(
@@ -15,11 +15,20 @@ function App() {
     " => ",
     counter,
     " >>> ",
-    [() => (counter.value > 3 ? "done" : "undone"), counter],
+    [
+      () => {
+        if (counter.value < 4) {
+          return;
+        }
+
+        return "done";
+      },
+      counter,
+    ],
   );
 }
 
-document.body.append(App(), div("and more...", counter));
+document.body.append(App(), div("and more => ", counter));
 
 // css`
 //   :where(&, *) {
