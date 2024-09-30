@@ -76,6 +76,59 @@ export function $(...options: Option<ParentNode>[]): ParentNode {
   return jot(doc.createDocumentFragment(), ...options);
 }
 
+const style: {
+  counter: number;
+  sheet?: CSSStyleSheet;
+  prefix: string;
+} = {
+  counter: 0,
+  prefix: "s",
+};
+
+/**
+ *
+ * @param rules
+ * @returns
+ */
+export function css(rules: {
+  [selector: string]: Partial<CSSStyleDeclaration>;
+}): Hook<Element> & { toString(): string } {
+  if (!style.sheet) {
+    const element = doc.createElement("style");
+
+    doc.head.appendChild(element);
+
+    style.sheet = element.sheet!;
+  }
+
+  const className = style.prefix + style.counter++;
+
+  const rule = style.sheet.cssRules[
+    style.sheet.insertRule(`.${className}{}`, style.sheet.cssRules.length)
+  ] as CSSStyleRule;
+
+  for (const [selector, nested] of Object.entries(rules)) {
+    Object.assign(
+      (
+        rule.cssRules[
+          rule.insertRule(`${selector}{}`, rule.cssRules.length)
+        ] as CSSStyleRule
+      ).style,
+      nested,
+    );
+  }
+
+  return {
+    hook(node) {
+      console.log("hi");
+      node.classList.add(className);
+    },
+    toString() {
+      return className;
+    },
+  };
+}
+
 /**
  *
  * @param node
@@ -148,6 +201,22 @@ let doc: Document = document;
  */
 export function setDocument(document: Document): void {
   doc = document;
+}
+
+/**
+ *
+ * @param element
+ */
+export function setStyleSheet(sheet: CSSStyleSheet) {
+  style.sheet = sheet;
+}
+
+/**
+ *
+ * @param prefix
+ */
+export function setStylePrefix(prefix: string) {
+  style.prefix = prefix || "s";
 }
 
 /**

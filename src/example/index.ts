@@ -1,4 +1,4 @@
-import { $, tags, use } from "../main/jot.ts";
+import { $, css, tags, use } from "../main/jot.ts";
 
 const { button, div } = tags;
 
@@ -6,12 +6,20 @@ const counter = use(0, (v) => div("foo => ", v));
 
 function App() {
   return $(
-    button("click me", {
-      className: "foo",
-      onclick: () => {
-        counter.value++;
+    button(
+      "click me",
+      {
+        className: "foo",
+        onclick: () => {
+          counter.value++;
+        },
       },
-    }),
+      css({
+        "&": {
+          color: "blue",
+        },
+      }),
+    ),
     " => ",
     counter,
     " >>> ",
