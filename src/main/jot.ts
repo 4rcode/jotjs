@@ -22,9 +22,15 @@ export interface Hook<N extends Node> {
 /**
  *
  */
+export interface Mutable<V> {
+  value: V;
+}
+
+/**
+ *
+ */
 export interface Observable<V> {
   add(observer: Observer<V>): Disposable;
-  value: V;
 }
 
 /**
@@ -38,19 +44,19 @@ export interface Observer<V> {
  *
  */
 export type Option<N extends Node> =
+  | [() => unknown, ...Observable<unknown>[]]
   | bigint
   | boolean
-  | null
-  | number
-  | string
-  | symbol
-  | undefined
-  | Node
-  | Partial<N>
   | Callback<N>
   | Hook<N>
-  | [() => unknown, ...Observable<unknown>[]]
-  | object[];
+  | Node
+  | null
+  | number
+  | object[]
+  | Partial<N>
+  | string
+  | symbol
+  | undefined;
 
 /**
  *
@@ -102,7 +108,7 @@ function parse(option: unknown, node: ParentNode): unknown {
       const [slot, ...dependencies] = option;
 
       if (typeof slot === "function") {
-        return view(slot, ...dependencies).hook(node);
+        return spy(slot, ...dependencies).hook(node);
       }
 
       if (!(node instanceof HTMLElement)) {
@@ -182,7 +188,7 @@ export function text(value?: unknown): [Text, (value?: unknown) => void] {
 export function use<V>(
   value: V,
   view?: (value: V) => unknown,
-): Observable<V> & Hook<ParentNode> & Disposable {
+): Mutable<V> & Observable<V> & Hook<ParentNode> & Disposable {
   if (view == null) {
     view = (value) => value;
   }
@@ -237,34 +243,31 @@ export function use<V>(
 
 /**
  *
- * @param view
+ * @param spy
  * @param dependencies
  * @returns
  */
-export function view<V>(
-  view: () => V,
+export function spy<V>(
+  spy: () => V,
   ...dependencies: Observable<unknown>[]
-): Observable<V> & Hook<ParentNode> & Disposable {
-  const observable = use(view());
+): Mutable<V> & Observable<V> & Hook<ParentNode> & Disposable {
+  const observable = use(spy());
 
   const observer = () => {
-    observable.value = view();
+    observable.value = spy();
   };
 
-  const disposables = new Set<Disposable>(
-    dependencies.map((dependency) => dependency.add(observer)),
+  const disposables = dependencies.map((dependency) =>
+    dependency.add(observer),
   );
 
-  const dispose = observable.dispose;
+  return Object.assign(observable, {
+    dispose() {
+      for (const disposable of disposables) {
+        disposable.dispose();
+      }
 
-  observable.dispose = () => {
-    for (const disposable of disposables) {
-      disposable.dispose();
-    }
-
-    disposables.clear();
-    dispose();
-  };
-
-  return observable;
+      observable.dispose();
+    },
+  });
 }
