@@ -1,4 +1,4 @@
-DENO := ${HOME}/.deno/bin/deno
+DENO := ~/.deno/bin/deno
 
 all: clean lint build
 

@@ -76,15 +76,6 @@ export function $(...options: Option<ParentNode>[]): ParentNode {
   return jot(doc.createDocumentFragment(), ...options);
 }
 
-const style: {
-  counter: number;
-  sheet?: CSSStyleSheet;
-  prefix: string;
-} = {
-  counter: 0,
-  prefix: "s",
-};
-
 /**
  *
  * @param rules
@@ -120,7 +111,6 @@ export function css(rules: {
 
   return {
     hook(node) {
-      console.log("hi");
       node.classList.add(className);
     },
     toString() {
@@ -202,6 +192,15 @@ let doc: Document = document;
 export function setDocument(document: Document): void {
   doc = document;
 }
+
+const style: {
+  counter: number;
+  sheet?: CSSStyleSheet;
+  prefix: string;
+} = {
+  counter: 0,
+  prefix: "s",
+};
 
 /**
  *
