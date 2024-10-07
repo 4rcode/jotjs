@@ -2,6 +2,7 @@ import { context } from "../deps/esbuild.ts";
 
 const server = await (
   await context({
+    platform: "neutral",
     bundle: true,
     entryPoints: ["src/example/index.ts"],
     outdir: "src/example",

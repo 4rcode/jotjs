@@ -1,6 +1,6 @@
 import { $, css, tags, use } from "../main/jot.ts";
 
-const { button, div } = tags;
+const { button, div, pre } = tags;
 
 const counter = use(0, (v) => div("foo => ", v));
 
@@ -37,6 +37,26 @@ function App() {
 }
 
 document.body.append(App(), div("and more => ", counter));
+
+const url =
+  "https://corsproxy.io/?" +
+  encodeURIComponent(
+    "https://tabs.ultimate-guitar.com/tab/brooke-fraser-brooke-ligertwood/bless-god-chords-4996846",
+  );
+
+console.log(url);
+
+const doc = document
+  .createRange()
+  .createContextualFragment(await (await fetch(url)).text());
+
+const text = doc.querySelector("div.js-store")?.getAttribute("data-content");
+
+const data = JSON.parse(text || "[]");
+
+console.log(data);
+
+document.body.append(pre(data.store.page.data.tab_view.wiki_tab.content));
 
 // css`
 //   :where(&, *) {
