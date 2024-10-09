@@ -9,30 +9,24 @@ function App() {
     button(
       "click me",
       {
-        className: "foo",
-        onclick: () => {
-          counter.value++;
-        },
+        className: [() => "foo bar " + Date.now(), counter],
+        style: [(s) => ((s.color = "red"), undefined)],
+        onclick: () => counter.value++,
       },
       css({
         "&": {
-          color: "blue",
+          // color: "blue",
         },
       }),
     ),
     " => ",
     counter,
     " >>> ",
-    [
-      () => {
-        if (counter.value < 4) {
-          return;
-        }
-
-        return "done";
-      },
-      counter,
-    ],
+    [() => (counter.value > 3 ? "done" : null), counter],
+    div({
+      className: "foobar",
+      textContent: [() => "this is the counter: " + counter.value, counter],
+    }),
   );
 }
 
@@ -44,17 +38,13 @@ const url =
     "https://tabs.ultimate-guitar.com/tab/brooke-fraser-brooke-ligertwood/bless-god-chords-4996846",
   );
 
-console.log(url);
-
 const doc = document
   .createRange()
   .createContextualFragment(await (await fetch(url)).text());
 
 const text = doc.querySelector("div.js-store")?.getAttribute("data-content");
 
-const data = JSON.parse(text || "[]");
-
-console.log(data);
+const data = JSON.parse(text || "{}");
 
 document.body.append(pre(data.store.page.data.tab_view.wiki_tab.content));
 

@@ -1,8 +1,13 @@
 /**
  *
  */
-export interface Callback<N> {
-  (node: N): void;
+export type Attributes = object[];
+
+/**
+ *
+ */
+export interface Callback<V, R = void> {
+  (value: V): R;
 }
 
 /**
@@ -44,7 +49,7 @@ export interface Observer<V> {
  *
  */
 export type Option<N> =
-  | [() => Option<ParentNode>, ...Observable<unknown>[]]
+  | Attributes
   | bigint
   | boolean
   | Callback<N>
@@ -52,11 +57,27 @@ export type Option<N> =
   | Node
   | null
   | number
-  | object[]
-  | Partial<N>
+  | Properties<N>
   | string
+  | symbol
   | undefined
+  | View
   | void;
+
+/**
+ *
+ */
+export type Property<V> = [
+  Callback<V, V | undefined | void>,
+  ...Observable<unknown>[],
+];
+
+/**
+ *
+ */
+export type Properties<N> = {
+  [P in keyof N]?: N[P] | Property<N[P]>;
+};
 
 /**
  *
@@ -66,6 +87,14 @@ export type Tags = {
     ...options: Option<HTMLElementTagNameMap[T]>[]
   ) => HTMLElementTagNameMap[T];
 };
+
+/**
+ *
+ */
+export type View = [
+  Callback<void, Option<ParentNode>>,
+  ...Observable<unknown>[],
+];
 
 /**
  *
@@ -83,7 +112,7 @@ export function $(...options: Option<ParentNode>[]): ParentNode {
  */
 export function css(rules: {
   [selector: string]: Partial<CSSStyleDeclaration>;
-}): Hook<Element> & { toString(): string } {
+}): Hook<Element> {
   if (!style.sheet) {
     const element = doc.createElement("style");
 
@@ -113,10 +142,32 @@ export function css(rules: {
     hook(node) {
       node.classList.add(className);
     },
-    toString() {
-      return className;
+    ...{
+      toString() {
+        return className;
+      },
     },
   };
+}
+
+function isElement(target: object): target is Element {
+  return "setAttribute" in target;
+}
+
+function isHook<N>(target: object): target is Hook<N> {
+  return "hook" in target;
+}
+
+function isNode(target: object): target is Node {
+  return "append" in target;
+}
+
+function isProperty<V>(target: unknown): target is Property<V> {
+  return Array.isArray(target) && typeof target[0] === "function";
+}
+
+function isView(target: unknown[]): target is View {
+  return typeof target[0] === "function";
 }
 
 /**
@@ -133,7 +184,7 @@ export function jot<N extends ParentNode>(node: N, ...options: Option<N>[]): N {
   return node;
 }
 
-function parse(option: unknown, node: ParentNode): unknown {
+function parse<N extends ParentNode>(option: Option<N>, node: N): unknown {
   if (option == null) {
     return;
   }
@@ -141,28 +192,50 @@ function parse(option: unknown, node: ParentNode): unknown {
   switch (typeof option) {
     case "string":
       return node.append(option);
+
     case "function":
       return option(node);
+
     case "object": {
-      if ("hook" in option && typeof option.hook === "function") {
+      if (isHook<N>(option)) {
         return option.hook(node);
       }
 
-      if (option instanceof Node) {
+      if (isNode(option)) {
         return node.append(option);
       }
 
-      if (!(option instanceof Array)) {
-        return Object.assign(node, option);
+      if (!Array.isArray(option)) {
+        for (const key in option) {
+          const value: unknown = option[key];
+
+          if (isProperty(value)) {
+            const [view, ...dependencies] = value;
+
+            spy(() => {
+              const value = view(node[key]);
+
+              if (value !== undefined) {
+                Object.assign(node, { [key]: value });
+              }
+
+              return value;
+            }, dependencies);
+          } else {
+            Object.assign(node, { [key]: value });
+          }
+        }
+
+        return;
       }
 
-      const [slot, ...dependencies] = option;
+      if (isView(option)) {
+        const [view, ...dependencies] = option;
 
-      if (typeof slot === "function") {
-        return spy(slot, ...dependencies).hook(node);
+        return spy(view, dependencies).hook(node);
       }
 
-      if (!(node instanceof HTMLElement)) {
+      if (!isElement(node)) {
         return;
       }
 
@@ -171,7 +244,7 @@ function parse(option: unknown, node: ParentNode): unknown {
           if (value == null) {
             node.removeAttribute(name);
           } else {
-            node.setAttribute(name, value == null ? "" : String(value));
+            node.setAttribute(name, String(value));
           }
         }
       }
@@ -225,13 +298,14 @@ export function setStylePrefix(prefix: string) {
  * @returns
  */
 export function spy<V>(
-  spy: () => V,
-  ...dependencies: Observable<unknown>[]
+  spy: Callback<V | undefined, V>,
+  dependencies: Observable<unknown>[],
+  view?: (value: V) => Option<ParentNode>,
 ): Mutable<V> & Observable<V> & Hook<ParentNode> & Disposable {
-  const observable = use(spy());
+  const observable = use(spy(undefined), view);
 
   const observer = () => {
-    observable.value = spy();
+    observable.value = spy(observable.value);
   };
 
   const disposables = dependencies.map((dependency) =>
