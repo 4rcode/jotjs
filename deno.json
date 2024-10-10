@@ -4,5 +4,5 @@
     "strict": true
   },
   "exclude": ["dist", "src/example/index.js"],
-  "nodeModulesDir": true
+  "nodeModulesDir": "auto"
 }

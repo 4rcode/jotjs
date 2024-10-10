@@ -1,4 +1,4 @@
-import { $, css, tags, use } from "../main/jot.ts";
+import { $, css, nil, tags, use } from "../main/mod.ts";
 
 const { button, div, pre } = tags;
 
@@ -10,7 +10,7 @@ function App() {
       "click me",
       {
         className: [() => "foo bar " + Date.now(), counter],
-        style: [(s) => ((s.color = "red"), undefined)],
+        style: [(s) => ((s.color = "red"), nil)],
         onclick: () => counter.value++,
       },
       css({
