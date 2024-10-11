@@ -1,15 +1,15 @@
 /**
  *
  */
-export interface Callback<V, R = void> {
-  (value: V): R;
+export interface Disposable {
+  dispose(): void;
 }
 
 /**
  *
  */
-export interface Disposable {
-  dispose(): void;
+export interface Function<V, R = void> {
+  (value: V): R;
 }
 
 /**
@@ -25,7 +25,7 @@ export interface Mutable<V> {
 export type Option<N extends ParentNode> =
   | bigint
   | boolean
-  | Callback<N, Option<N>>
+  | Function<N, Option<N>>
   | Node
   | null
   | number
@@ -46,7 +46,7 @@ export type Properties<N> = {
 /**
  *
  */
-export type Property<V> = [Callback<V, V | undefined | void>];
+export type Property<V> = [Function<V, V | undefined | void>];
 
 /**
  *
@@ -60,4 +60,4 @@ export type Tags = {
 /**
  *
  */
-export type View = Callback<void, Option<ParentNode>>[];
+export type View = Function<void, Option<ParentNode>>[];

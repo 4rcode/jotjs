@@ -1,5 +1,5 @@
 import { getDocument } from "./document.ts";
-import { Callback } from "./types.ts";
+import { Function } from "./types.ts";
 
 const style: {
   counter: number;
@@ -16,7 +16,7 @@ const style: {
  */
 export function css(rules: {
   [selector: string]: Partial<CSSStyleDeclaration>;
-}): Callback<Element, void> {
+}): Function<Element, void> {
   if (!style.sheet) {
     const document = getDocument();
     const element = document.createElement("style");

@@ -1,12 +1,15 @@
-import { Callback, Disposable, Mutable } from "./types.ts";
+import { Disposable, Function, Mutable } from "./types.ts";
 
-const current: { observer?: Callback<unknown> } = {};
+const current: {
+  disposable?: Disposable;
+  observer?: Function<unknown>;
+} = {};
 
 /**
  *
  * @param attributes
  */
-export function set(attributes: object, namespace?: string): Callback<Element> {
+export function set(attributes: object, namespace?: string): Function<Element> {
   return (element) => {
     for (const [name, value] of Object.entries(attributes)) {
       if (value == null) {
@@ -25,27 +28,32 @@ export function set(attributes: object, namespace?: string): Callback<Element> {
  * @returns
  */
 export function spy<V>(
-  callback: Callback<V, V>,
-): Callback<unknown, V> & Mutable<V> & Disposable {
+  callback: Function<void, V>,
+): Function<unknown, V> & Mutable<V> & Disposable {
+  const disposables = new Set<Disposable>();
+
   const observer = () => {
     current.observer = observer;
-    observable.value = callback(observable.value);
+    observable.value = callback();
+
+    if (current.disposable) {
+      disposables.add(current.disposable);
+    }
+
     current.observer = undefined;
+    current.disposable = undefined;
   };
 
   current.observer = observer;
-  const observable = use(callback(undefined as V));
+  const observable = use(callback());
   current.observer = undefined;
-
-  // const disposables = dependencies.map((dependency) =>
-  //   dependency.add(observer),
-  // );
+  current.disposable = undefined;
 
   return Object.assign(observable, {
     dispose() {
-      // for (const disposable of disposables) {
-      //   disposable.dispose();
-      // }
+      for (const disposable of disposables) {
+        disposable.dispose();
+      }
 
       observable.dispose();
     },
@@ -60,12 +68,22 @@ export function spy<V>(
  */
 export function use<V>(
   value: V,
-): Callback<unknown, V> & Disposable & Mutable<V> {
-  const observers = new Set<Callback<V>>();
+): Function<unknown, V> & Disposable & Mutable<V> {
+  const observers = new Map<Function<V>, Disposable>();
 
   const get = () => {
-    if (current.observer) {
-      observers.add(current.observer);
+    const observer = current.observer;
+
+    if (observer && !observers.has(observer)) {
+      const disposable = {
+        dispose() {
+          observers.delete(observer);
+        },
+      };
+
+      observers.set(observer, disposable);
+
+      current.disposable = disposable;
     }
 
     return value;
@@ -88,7 +106,7 @@ export function use<V>(
 
         value = next;
 
-        for (const observe of observers) {
+        for (const observe of observers.keys()) {
           observe(value);
         }
       },
