@@ -1,6 +1,6 @@
 import { Callback, Disposable, Mutable } from "./types.ts";
 
-const current: { observer?: () => void } = {};
+const current: { observer?: Callback<unknown> } = {};
 
 /**
  *
@@ -26,8 +26,7 @@ export function set(attributes: object, namespace?: string): Callback<Element> {
  */
 export function spy<V>(
   callback: Callback<V, V>,
-  // view?: (value: V) => Option<ParentNode>,
-): Mutable<V> & Disposable {
+): Callback<unknown, V> & Mutable<V> & Disposable {
   const observer = () => {
     current.observer = observer;
     observable.value = callback(observable.value);
@@ -62,7 +61,7 @@ export function spy<V>(
 export function use<V>(
   value: V,
 ): Callback<unknown, V> & Disposable & Mutable<V> {
-  const observers = new Set<Callback<V, void>>();
+  const observers = new Set<Callback<V>>();
 
   const get = () => {
     if (current.observer) {
