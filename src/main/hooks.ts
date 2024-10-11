@@ -64,43 +64,34 @@ export function use<V>(
 ): Callback<unknown, V> & Disposable & Mutable<V> {
   const observers = new Set<Callback<V, void>>();
 
-  return Object.defineProperties(
-    Object.assign(() => value, {
+  const get = () => {
+    if (current.observer) {
+      observers.add(current.observer);
+    }
+
+    return value;
+  };
+
+  return Object.defineProperty(
+    Object.assign(get, {
       dispose() {
         observers.clear();
       },
       value,
     }),
+    "value",
     {
-      // add(observer: Observer<V>) {
-      //   observers.add(observer);
+      get,
+      set(next: V) {
+        if (value === next) {
+          return;
+        }
 
-      //   return {
-      //     dispose() {
-      //       observers.delete(observer);
-      //     },
-      //   };
-      // },
-      value: {
-        get() {
-          if (current.observer) {
-            observers.add(current.observer);
-          }
+        value = next;
 
-          return value;
-        },
-
-        set(next: V) {
-          if (value === next) {
-            return;
-          }
-
-          value = next;
-
-          for (const observe of observers) {
-            observe(value);
-          }
-        },
+        for (const observe of observers) {
+          observe(value);
+        }
       },
     },
   );

@@ -28,46 +28,42 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): unknown {
         return node.append(option);
       }
 
-      if (!Array.isArray(option)) {
-        for (const key in option) {
-          const value: unknown = option[key];
+      if (Array.isArray(option)) {
+        for (const callback of option) {
+          const document = getDocument();
+          const range = document.createRange();
+          const start = document.createTextNode("");
+          const end = document.createTextNode("");
 
-          if (isProperty(value)) {
-            const [view] = value;
+          node.append(start, end);
 
-            spy(() => {
-              const value = view(node[key]);
-
-              if (value !== undefined) {
-                Object.assign(node, { [key]: value });
-              }
-
-              return value;
-            });
-          } else {
-            Object.assign(node, { [key]: value });
-          }
+          spy(() => {
+            range.setStartAfter(start);
+            range.setEndBefore(end);
+            range.deleteContents();
+            range.insertNode($(callback()));
+          });
         }
 
         return;
       }
 
-      for (const callback of option) {
-        const document = getDocument();
-        const start = document.createTextNode("");
-        const end = document.createTextNode("");
+      for (const key in option) {
+        const value: unknown = option[key];
 
-        jot(node, start, end);
+        if (isProperty(value)) {
+          for (const callback of value) {
+            spy(() => {
+              const value = callback(node[key]);
 
-        spy(() => {
-          console.log(callback());
-          const range = document.createRange();
-
-          range.setStartAfter(start);
-          range.setEndBefore(end);
-          range.deleteContents();
-          range.insertNode($(callback()));
-        });
+              if (value !== undefined) {
+                Object.assign(node, { [key]: value });
+              }
+            });
+          }
+        } else {
+          Object.assign(node, { [key]: value });
+        }
       }
 
       return;

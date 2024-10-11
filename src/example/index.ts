@@ -12,8 +12,13 @@ function App() {
       "click me",
       {
         className: [() => "foo bar " + Date.now()],
-        style: [(s) => ((s.color = "red"), undefined)],
-        onclick: () => (counter.value++, counter2.value++),
+        style: [
+          (s) => {
+            s.fontSize = "2rem";
+            s.color = "rgb(" + (counter2.value % 256) + ", 100, 100)";
+          },
+        ],
+        onclick: () => (counter.value++, (counter2.value = Date.now())),
       },
       css({
         "&": {
@@ -21,22 +26,19 @@ function App() {
         },
       }),
     ),
-    " => ",
-    counter,
-    " what is this? ",
-    [counter],
-    " AND ",
-    [() => counter2.value],
-    " >>> ",
-    [() => (counter.value > 3 ? "done" : null)],
-    div({
-      className: "foobar",
-      textContent: [() => "this is the counter: " + counter.value],
-    }),
+    div("COUNTER 1 => ", counter),
+    div("COUNTER 2 => ", counter2),
+    div("COUNTER 1 [] => ", [counter]),
+    div("COUNTER 2 [] => ", [counter2]),
+    div("COUNTER 1 func => ", [() => counter]),
+    div("COUNTER 2 func => ", [() => counter2]),
+    div("COUNTER 1 func.value => ", [() => counter.value]),
+    div("COUNTER 2 func.value => ", [() => counter2.value]),
+    div("counter.value > 3 => ", [() => (counter.value > 3 ? "done" : null)]),
   );
 }
 
-document.body.append(App(), div("and more => ", [() => counter.value]));
+document.body.append(App(), div("and more => ", [counter]));
 
 const url =
   "https://corsproxy.io/?" +
