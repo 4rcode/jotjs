@@ -1,11 +1,11 @@
-const local = { document };
+const current = { document };
 
 /**
  *
  * @returns
  */
 export function getDocument(): Document {
-  return local.document;
+  return current.document;
 }
 
 /**
@@ -13,5 +13,5 @@ export function getDocument(): Document {
  * @param document
  */
 export function setDocument(document: Document): void {
-  local.document = document;
+  current.document = document;
 }

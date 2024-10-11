@@ -1,11 +1,6 @@
 /**
  *
  */
-export type Attributes = object[];
-
-/**
- *
- */
 export interface Callback<V, R = void> {
   (value: V): R;
 }
@@ -20,13 +15,6 @@ export interface Disposable {
 /**
  *
  */
-export interface Hook<N extends ParentNode> {
-  hook(node: N): void;
-}
-
-/**
- *
- */
 export interface Mutable<V> {
   value: V;
 }
@@ -34,26 +22,10 @@ export interface Mutable<V> {
 /**
  *
  */
-export interface Observable<V> {
-  add(observer: Observer<V>): Disposable;
-}
-
-/**
- *
- */
-export interface Observer<V> {
-  (value: V): void;
-}
-
-/**
- *
- */
 export type Option<N extends ParentNode> =
-  | Attributes
   | bigint
   | boolean
-  | Callback<N>
-  | Hook<N>
+  | Callback<N, Option<N>>
   | Node
   | null
   | number
@@ -74,10 +46,7 @@ export type Properties<N> = {
 /**
  *
  */
-export type Property<V> = [
-  Callback<V, V | typeof nil>,
-  ...Observable<unknown>[],
-];
+export type Property<V> = [Callback<V, V | undefined | void>];
 
 /**
  *
@@ -91,12 +60,4 @@ export type Tags = {
 /**
  *
  */
-export type View = [
-  Callback<void, Option<ParentNode>>,
-  ...Observable<unknown>[],
-];
-
-/**
- *
- */
-export const nil = Symbol();
+export type View = Callback<void, Option<ParentNode>>[];

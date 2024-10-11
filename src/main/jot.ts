@@ -1,6 +1,6 @@
 import { getDocument } from "./document.ts";
 import { spy } from "./hooks.ts";
-import { Hook, nil, Option, Property, Tags, View } from "./types.ts";
+import { Option, Property, Tags } from "./types.ts";
 
 /**
  *
@@ -21,13 +21,9 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): unknown {
       return node.append(option);
 
     case "function":
-      return option(node);
+      return apply(option(node), node);
 
     case "object": {
-      if (isHook<N>(option)) {
-        return option.hook(node);
-      }
-
       if (isNode(option)) {
         return node.append(option);
       }
@@ -37,17 +33,17 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): unknown {
           const value: unknown = option[key];
 
           if (isProperty(value)) {
-            const [view, ...dependencies] = value;
+            const [view] = value;
 
             spy(() => {
               const value = view(node[key]);
 
-              if (value !== nil) {
+              if (value !== undefined) {
                 Object.assign(node, { [key]: value });
               }
 
               return value;
-            }, dependencies);
+            });
           } else {
             Object.assign(node, { [key]: value });
           }
@@ -56,24 +52,22 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): unknown {
         return;
       }
 
-      if (isView(option)) {
-        const [view, ...dependencies] = option;
+      for (const callback of option) {
+        const document = getDocument();
+        const start = document.createTextNode("");
+        const end = document.createTextNode("");
 
-        return spy(view, dependencies).hook(node);
-      }
+        jot(node, start, end);
 
-      if (!isElement(node)) {
-        return;
-      }
+        spy(() => {
+          console.log(callback());
+          const range = document.createRange();
 
-      for (const attributes of option) {
-        for (const [name, value] of Object.entries(attributes)) {
-          if (value == null) {
-            node.removeAttribute(name);
-          } else {
-            node.setAttribute(name, String(value));
-          }
-        }
+          range.setStartAfter(start);
+          range.setEndBefore(end);
+          range.deleteContents();
+          range.insertNode($(callback()));
+        });
       }
 
       return;
@@ -83,24 +77,12 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): unknown {
   return node.append(String(option));
 }
 
-function isElement(target: object): target is Element {
-  return "setAttribute" in target;
-}
-
-function isHook<N extends ParentNode>(target: object): target is Hook<N> {
-  return "hook" in target;
-}
-
 function isNode(target: object): target is Node {
-  return "append" in target;
+  return "nodeType" in target;
 }
 
 function isProperty(target: unknown): target is Property<unknown> {
   return Array.isArray(target) && typeof target[0] === "function";
-}
-
-function isView(target: unknown[]): target is View {
-  return typeof target[0] === "function";
 }
 
 /**

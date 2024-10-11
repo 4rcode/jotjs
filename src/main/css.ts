@@ -1,5 +1,5 @@
 import { getDocument } from "./document.ts";
-import { Hook } from "./types.ts";
+import { Callback } from "./types.ts";
 
 const style: {
   counter: number;
@@ -16,7 +16,7 @@ const style: {
  */
 export function css(rules: {
   [selector: string]: Partial<CSSStyleDeclaration>;
-}): Hook<Element> {
+}): Callback<Element, void> {
   if (!style.sheet) {
     const document = getDocument();
     const element = document.createElement("style");
@@ -43,16 +43,16 @@ export function css(rules: {
     );
   }
 
-  return {
-    hook(node) {
-      node.classList.add(className);
+  return Object.assign(
+    (element: Element) => {
+      element.classList.add(className);
     },
-    ...{
+    {
       toString() {
         return className;
       },
     },
-  };
+  );
 }
 
 /**

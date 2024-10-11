@@ -1,17 +1,19 @@
-import { $, css, nil, tags, use } from "../main/mod.ts";
+import { $, css, set, tags, use } from "../main/mod.ts";
 
 const { button, div, pre } = tags;
 
-const counter = use(0, (v) => div("foo => ", v));
+const counter = use(0);
+const counter2 = use(100);
 
 function App() {
   return $(
     button(
+      set({ a: "b" }),
       "click me",
       {
-        className: [() => "foo bar " + Date.now(), counter],
-        style: [(s) => ((s.color = "red"), nil)],
-        onclick: () => counter.value++,
+        className: [() => "foo bar " + Date.now()],
+        style: [(s) => ((s.color = "red"), undefined)],
+        onclick: () => (counter.value++, counter2.value++),
       },
       css({
         "&": {
@@ -21,16 +23,20 @@ function App() {
     ),
     " => ",
     counter,
+    " what is this? ",
+    [counter],
+    " AND ",
+    [() => counter2.value],
     " >>> ",
-    [() => (counter.value > 3 ? "done" : null), counter],
+    [() => (counter.value > 3 ? "done" : null)],
     div({
       className: "foobar",
-      textContent: [() => "this is the counter: " + counter.value, counter],
+      textContent: [() => "this is the counter: " + counter.value],
     }),
   );
 }
 
-document.body.append(App(), div("and more => ", counter));
+document.body.append(App(), div("and more => ", [() => counter.value]));
 
 const url =
   "https://corsproxy.io/?" +
