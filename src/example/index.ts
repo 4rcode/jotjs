@@ -1,6 +1,6 @@
 import { $, css, set, tags, use } from "../main/mod.ts";
 
-const { button, div, pre } = tags;
+const { button, div } = tags;
 
 const counter = use(0);
 const counter2 = use(100);
@@ -34,27 +34,33 @@ function App() {
     div("COUNTER 2 func => ", [() => counter2]),
     div("COUNTER 1 func.value => ", [() => counter.value]),
     div("COUNTER 2 func.value => ", [() => counter2.value]),
-    div("counter.value > 3 => ", [() => (counter.value > 3 ? "done" : null)]),
+    div("counter.value greater than 3 => ", [
+      () => (counter.value > 3 ? "done" : null),
+    ]),
   );
 }
 
-document.body.append(App(), div("and more => ", [counter]));
+document.body.append(App());
 
-const url =
-  "https://corsproxy.io/?" +
-  encodeURIComponent(
-    "https://tabs.ultimate-guitar.com/tab/brooke-fraser-brooke-ligertwood/bless-god-chords-4996846",
-  );
+// setInterval(() => {
+// document.body.replaceChildren(div([counter]));
+// }, 10);
 
-const doc = document
-  .createRange()
-  .createContextualFragment(await (await fetch(url)).text());
+// const url =
+//   "https://corsproxy.io/?" +
+//   encodeURIComponent(
+//     "https://tabs.ultimate-guitar.com/tab/brooke-fraser-brooke-ligertwood/bless-god-chords-4996846",
+//   );
 
-const text = doc.querySelector("div.js-store")?.getAttribute("data-content");
+// const doc = document
+//   .createRange()
+//   .createContextualFragment(await (await fetch(url)).text());
 
-const data = JSON.parse(text || "{}");
+// const text = doc.querySelector("div.js-store")?.getAttribute("data-content");
 
-document.body.append(pre(data.store.page.data.tab_view.wiki_tab.content));
+// const data = JSON.parse(text || "{}");
+
+// document.body.append(pre(data.store.page.data.tab_view.wiki_tab.content));
 
 // css`
 //   :where(&, *) {

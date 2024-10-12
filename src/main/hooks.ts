@@ -1,9 +1,9 @@
 import { Disposable, Function, Mutable } from "./types.ts";
 
 const current: {
-  disposable?: Disposable;
-  observer?: Function<unknown>;
-} = {};
+  disposables: Disposable[][];
+  observers: Function<unknown>[];
+} = { disposables: [], observers: [] };
 
 /**
  *
@@ -30,28 +30,30 @@ export function set(attributes: object, namespace?: string): Function<Element> {
 export function spy<V>(
   callback: Function<void, V>,
 ): Function<unknown, V> & Mutable<V> & Disposable {
-  const disposables = new Set<Disposable>();
+  const garbage = new Set<Disposable>();
 
   const observer = () => {
-    current.observer = observer;
     observable.value = callback();
-
-    if (current.disposable) {
-      disposables.add(current.disposable);
-    }
-
-    current.observer = undefined;
-    current.disposable = undefined;
   };
 
-  current.observer = observer;
+  current.disposables.push([]);
+  current.observers.push(observer);
+
   const observable = use(callback());
-  current.observer = undefined;
-  current.disposable = undefined;
+  const disposables = current.disposables.at(-1);
+
+  if (disposables) {
+    for (const disposable of disposables) {
+      garbage.add(disposable);
+    }
+  }
+
+  current.observers.pop();
+  current.disposables.pop();
 
   return Object.assign(observable, {
     dispose() {
-      for (const disposable of disposables) {
+      for (const disposable of garbage) {
         disposable.dispose();
       }
 
@@ -69,21 +71,19 @@ export function spy<V>(
 export function use<V>(
   value: V,
 ): Function<unknown, V> & Disposable & Mutable<V> {
-  const observers = new Map<Function<V>, Disposable>();
+  const observers = new Set<Function<V>>();
 
   const get = () => {
-    const observer = current.observer;
+    const observer = current.observers.at(-1);
+    const disposables = current.disposables.at(-1);
 
-    if (observer && !observers.has(observer)) {
-      const disposable = {
+    if (observer && disposables) {
+      observers.add(observer);
+      disposables.push({
         dispose() {
           observers.delete(observer);
         },
-      };
-
-      observers.set(observer, disposable);
-
-      current.disposable = disposable;
+      });
     }
 
     return value;
