@@ -1,6 +1,13 @@
 import { getDocument } from "./document.ts";
 import { spy } from "./hooks.ts";
+import type { Function } from "./types.ts";
 import { Option, Property, Tags } from "./types.ts";
+
+interface Disposable {
+  [disposables]: Function<void>[];
+}
+
+const disposables = Symbol();
 
 /**
  *
@@ -11,7 +18,7 @@ export function $(...options: Option<ParentNode>[]): ParentNode {
   return jot(getDocument().createDocumentFragment(), ...options);
 }
 
-function apply<N extends ParentNode>(option: Option<N>, node: N): unknown {
+function apply<N extends ParentNode>(option: Option<N>, node: N): void {
   if (option == null) {
     return;
   }
@@ -49,17 +56,23 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): unknown {
       }
 
       for (const key in option) {
-        const value: unknown = option[key];
+        const value = option[key];
 
-        if (isProperty(value)) {
+        if (isProperty<N[typeof key]>(value)) {
+          const garbage = isDisposable(node)
+            ? node
+            : Object.assign(node, { [disposables]: [] });
+
           for (const callback of value) {
-            spy(() => {
-              const value = callback(node[key]);
+            garbage[disposables].push(
+              spy(() => {
+                const value = callback(node[key]);
 
-              if (value !== undefined) {
-                Object.assign(node, { [key]: value });
-              }
-            });
+                if (value !== undefined) {
+                  Object.assign(node, { [key]: value });
+                }
+              }),
+            );
           }
         } else {
           Object.assign(node, { [key]: value });
@@ -73,11 +86,27 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): unknown {
   return node.append(String(option));
 }
 
+export function dispose(...nodes: ParentNode[]) {
+  for (const node of nodes) {
+    dispose(...node.children);
+
+    if (isDisposable(node)) {
+      for (const disposable of node[disposables]) {
+        disposable();
+      }
+    }
+  }
+}
+
+function isDisposable(target: object): target is Disposable {
+  return disposables in target;
+}
+
 function isNode(target: object): target is Node {
   return "nodeType" in target;
 }
 
-function isProperty(target: unknown): target is Property<unknown> {
+function isProperty<V>(target: unknown): target is Property<V> {
   return Array.isArray(target) && typeof target[0] === "function";
 }
 

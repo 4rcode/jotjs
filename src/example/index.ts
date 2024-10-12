@@ -43,8 +43,9 @@ function App() {
 document.body.append(App());
 
 // setInterval(() => {
-// document.body.replaceChildren(div([counter]));
-// }, 10);
+//   dispose(document.body);
+//   document.body.replaceChildren(div("foobar => ", [counter]));
+// }, 5);
 
 // const url =
 //   "https://corsproxy.io/?" +

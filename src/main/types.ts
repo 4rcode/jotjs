@@ -46,7 +46,7 @@ export type Properties<N> = {
 /**
  *
  */
-export type Property<V> = [Function<V, V | undefined | void>];
+export type Property<V> = Function<V, V | undefined | void>[];
 
 /**
  *
