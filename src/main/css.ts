@@ -1,5 +1,4 @@
 import { getDocument } from "./document.ts";
-import { Function } from "./types.ts";
 
 const style: {
   counter: number;
@@ -16,7 +15,7 @@ const style: {
  */
 export function css(rules: {
   [selector: string]: Partial<CSSStyleDeclaration>;
-}): Function<Element, void> {
+}): (element: Element) => void {
   if (!style.sheet) {
     const document = getDocument();
     const element = document.createElement("style");
@@ -68,5 +67,5 @@ export function setStyleSheet(sheet: CSSStyleSheet) {
  * @param prefix
  */
 export function setStylePrefix(prefix: string) {
-  style.prefix = prefix || "s";
+  style.prefix = prefix;
 }

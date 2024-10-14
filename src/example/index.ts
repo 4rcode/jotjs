@@ -7,7 +7,7 @@ const counter2 = use(100);
 function App() {
   return $(
     j.button(
-      set({ a: "b" }),
+      set({ a: "b", b: [(s) => s] }),
       "click me",
       {
         className: [() => "foo bar " + Date.now()],
