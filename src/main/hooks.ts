@@ -51,13 +51,16 @@ export function spy<V>(
   current.observers.pop();
   current.disposables.pop();
 
+  const dispose = observable.dispose;
+
   return Object.assign(observable, {
     dispose() {
       for (const disposable of garbage) {
         disposable.dispose();
+        garbage.delete(disposable);
       }
 
-      observable.dispose();
+      dispose();
     },
   });
 }

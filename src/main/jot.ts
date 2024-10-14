@@ -36,6 +36,8 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): void {
       }
 
       if (Array.isArray(option)) {
+        const disposable = getDisposable(node);
+
         for (const callback of option) {
           const document = getDocument();
           const range = document.createRange();
@@ -44,12 +46,14 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): void {
 
           node.append(start, end);
 
-          spy(() => {
-            range.setStartAfter(start);
-            range.setEndBefore(end);
-            range.deleteContents();
-            range.insertNode($(callback()));
-          });
+          disposable[disposables].push(
+            spy(() => {
+              range.setStartAfter(start);
+              range.setEndBefore(end);
+              range.deleteContents();
+              range.insertNode($(callback()));
+            }).dispose,
+          );
         }
 
         return;
@@ -59,19 +63,17 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): void {
         const value = option[key];
 
         if (isProperty<N[typeof key]>(value)) {
-          const garbage = isDisposable(node)
-            ? node
-            : Object.assign(node, { [disposables]: [] });
+          const disposable = getDisposable(node);
 
           for (const callback of value) {
-            garbage[disposables].push(
+            disposable[disposables].push(
               spy(() => {
                 const value = callback(node[key]);
 
                 if (value !== undefined) {
                   Object.assign(node, { [key]: value });
                 }
-              }),
+              }).dispose,
             );
           }
         } else {
@@ -91,11 +93,19 @@ export function dispose(...nodes: ParentNode[]) {
     dispose(...node.children);
 
     if (isDisposable(node)) {
-      for (const disposable of node[disposables]) {
-        disposable();
+      for (const dispose of node[disposables]) {
+        dispose();
       }
     }
   }
+}
+
+function getDisposable<N extends ParentNode>(node: N): Disposable {
+  if (isDisposable(node)) {
+    return node;
+  }
+
+  return Object.assign(node, { [disposables]: [] });
 }
 
 function isDisposable(target: object): target is Disposable {

@@ -1,13 +1,12 @@
 import { $, css, set, tags, use } from "../main/mod.ts";
 
-const { button, div } = tags;
-
+const j = tags;
 const counter = use(0);
 const counter2 = use(100);
 
 function App() {
   return $(
-    button(
+    j.button(
       set({ a: "b" }),
       "click me",
       {
@@ -26,15 +25,15 @@ function App() {
         },
       }),
     ),
-    div("COUNTER 1 => ", counter),
-    div("COUNTER 2 => ", counter2),
-    div("COUNTER 1 [] => ", [counter]),
-    div("COUNTER 2 [] => ", [counter2]),
-    div("COUNTER 1 func => ", [() => counter]),
-    div("COUNTER 2 func => ", [() => counter2]),
-    div("COUNTER 1 func.value => ", [() => counter.value]),
-    div("COUNTER 2 func.value => ", [() => counter2.value]),
-    div("counter.value greater than 3 => ", [
+    j.div("COUNTER 1 => ", counter),
+    j.div("COUNTER 2 => ", counter2),
+    j.div("COUNTER 1 [] => ", [counter]),
+    j.div("COUNTER 2 [] => ", [counter2]),
+    j.div("COUNTER 1 func => ", [() => counter]),
+    j.div("COUNTER 2 func => ", [() => counter2]),
+    j.div("COUNTER 1 func.value => ", [() => counter.value]),
+    j.div("COUNTER 2 func.value => ", [() => counter2.value]),
+    j.div("counter.value greater than 3 => ", [
       () => (counter.value > 3 ? "done" : null),
     ]),
   );
@@ -44,7 +43,7 @@ document.body.append(App());
 
 // setInterval(() => {
 //   dispose(document.body);
-//   document.body.replaceChildren(div("foobar => ", [counter]));
+//   document.body.replaceChildren(j.div("foobar => ", [counter]));
 // }, 5);
 
 // const url =
