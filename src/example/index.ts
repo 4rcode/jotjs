@@ -1,50 +1,61 @@
-import { $, css, set, tags, use } from "../main/mod.ts";
+import { dispose, tags, use } from "../main/mod.ts";
 
 const j = tags;
-const counter = use(0);
-const counter2 = use(100);
+
+function Todo(item: string) {
+  const completed = use(false);
+
+  const label = j.span(item, {
+    style: [
+      (s) => {
+        s.textDecoration = completed.value ? "line-through" : "";
+      },
+    ],
+  });
+
+  const todo = j.div(
+    j.button("X", {
+      onclick: () => {
+        dispose(todo);
+        todo.replaceWith();
+      },
+    }),
+    j.button("C", {
+      onclick: () => (completed.value = !completed.value),
+    }),
+    label,
+  );
+
+  return todo;
+}
 
 function App() {
-  return $(
-    j.button(
-      set({ a: "b", b: [(s) => s] }),
-      "click me",
+  const list = j.div();
+  const input = j.input();
+
+  return j.div(
+    j.h1("TODO LIST"),
+    j.form(
       {
-        className: [() => "foo bar " + Date.now()],
-        style: [
-          (s) => {
-            s.fontSize = "2rem";
-            s.color = "rgb(" + (counter2.value % 256) + ", 100, 100)";
-          },
-        ],
-        onclick: () => (counter.value++, (counter2.value = Date.now())),
-      },
-      css({
-        "&": {
-          // color: "blue",
+        onsubmit: (event) => {
+          event.preventDefault();
+
+          if (!input.value) {
+            return;
+          }
+
+          list.append(Todo(input.value));
+          input.value = "";
         },
-      }),
+      },
+      input,
+      j.button("Create new todo"),
+      list,
     ),
-    j.div("COUNTER 1 => ", counter),
-    j.div("COUNTER 2 => ", counter2),
-    j.div("COUNTER 1 [] => ", [counter]),
-    j.div("COUNTER 2 [] => ", [counter2]),
-    j.div("COUNTER 1 func => ", [() => counter]),
-    j.div("COUNTER 2 func => ", [() => counter2]),
-    j.div("COUNTER 1 func.value => ", [() => counter.value]),
-    j.div("COUNTER 2 func.value => ", [() => counter2.value]),
-    j.div("counter.value greater than 3 => ", [
-      () => (counter.value > 3 ? "done" : null),
-    ]),
   );
 }
 
 document.body.append(App());
-
-// setInterval(() => {
-//   dispose(document.body);
-//   document.body.replaceChildren(j.div("foobar => ", [counter]));
-// }, 5);
 
 // const url =
 //   "https://corsproxy.io/?" +
@@ -135,69 +146,3 @@ document.body.append(App());
 //     flex-grow: 1;
 //   }
 // `;
-
-// function Todo(input: HTMLInputElement) {
-//   const todo = ref();
-//   const label = ref();
-
-//   return html`
-//     <div ${todo}>
-//       <button
-//         ${{ a: { href: "" } }}
-//         ${(b: HTMLInputElement) => {
-//           b.addEventListener("click", () => {
-//             todo.ref.replaceWith();
-//           });
-//         }}
-//       >
-//         X
-//       </button>
-//       <button
-//         ${ref((b) => {
-//           b.addEventListener("click", () => {
-//             label.ref.style.textDecoration = label.ref.style.textDecoration
-//               ? ""
-//               : "line-through";
-//           });
-//         })}
-//       >
-//         C
-//       </button>
-//       <span ${label}>${input.value}</span>
-//     </div>
-//   `;
-// }
-
-// function App() {
-//   const list = ref();
-//   const input = ref<HTMLInputElement>();
-
-//   return html`
-//     <div ${style}>
-//       <h1>TODO LIST</h1>
-//       <form
-//         ${ref((f) => {
-//           f.addEventListener("submit", (event) => {
-//             event.preventDefault();
-
-//             if (!input.ref.value) {
-//               return;
-//             }
-
-//             list.ref.append(Todo(input.ref));
-//             input.ref.value = "";
-//           });
-//         })}
-//       >
-//         <input
-//           ${input}
-//           ${(e: HTMLElement) => {
-//             e.className = "foobar";
-//           }}
-//         />
-//         <button>Create new todo</button>
-//       </form>
-//       <div ${list}></div>
-//     </div>
-//   `;
-// }

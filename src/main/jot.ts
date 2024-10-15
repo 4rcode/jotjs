@@ -1,5 +1,5 @@
 import { getDocument } from "./document.ts";
-import { Callback, disposables, getBag, spy } from "./hooks.ts";
+import { Callback, getDisposables, spy } from "./hooks.ts";
 
 /**
  *
@@ -71,7 +71,7 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): void {
       }
 
       if (Array.isArray(option)) {
-        const bag = getBag(node);
+        const disposables = getDisposables(node);
 
         for (const callback of option) {
           const document = getDocument();
@@ -81,7 +81,7 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): void {
 
           node.append(start, end);
 
-          bag[disposables].push(
+          disposables.push(
             spy(() => {
               range.setStartAfter(start);
               range.setEndBefore(end);
@@ -98,10 +98,10 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): void {
         const value = option[key];
 
         if (isProperty<N[typeof key]>(value)) {
-          const bag = getBag(node);
+          const disposables = getDisposables(node);
 
           for (const callback of value) {
-            bag[disposables].push(
+            disposables.push(
               spy(() => {
                 const value = callback(node[key]);
 

@@ -56,16 +56,16 @@ export function css(rules: {
 
 /**
  *
- * @param element
- */
-export function setStyleSheet(sheet: CSSStyleSheet) {
-  style.sheet = sheet;
-}
-
-/**
- *
  * @param prefix
  */
 export function setStylePrefix(prefix: string) {
   style.prefix = prefix;
+}
+
+/**
+ *
+ * @param element
+ */
+export function setStyleSheet(sheet: CSSStyleSheet) {
+  style.sheet = sheet;
 }

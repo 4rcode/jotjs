@@ -3,7 +3,7 @@
  */
 export type Attribute = Callback<
   string | null,
-  bigint | boolean | null | number | string | undefined | void
+  bigint | boolean | null | number | string | symbol | undefined | void
 >[];
 
 /**
@@ -22,10 +22,7 @@ export interface Attributes {
     | void;
 }
 
-/**
- *
- */
-export interface Bag {
+interface Bag {
   [disposables]: Disposable[];
 }
 
@@ -50,32 +47,35 @@ export interface Mutable<V> {
   value: V;
 }
 
-/**
- *
- */
-export const disposables = Symbol();
+const disposables = Symbol();
 
 export function dispose(...nodes: ParentNode[]) {
   for (const node of nodes) {
     dispose(...node.children);
 
-    if (isBag(node)) {
+    if (hasDisposables(node)) {
       for (const disposable of node[disposables]) {
         disposable.dispose();
       }
+
+      node[disposables] = [];
     }
   }
 }
 
-export function getBag(node: object): Bag {
-  if (isBag(node)) {
-    return node;
+export function getDisposables(node: object): Disposable[] {
+  if (hasDisposables(node)) {
+    return node[disposables];
   }
 
-  return Object.assign(node, { [disposables]: [] });
+  const items: Disposable[] = [];
+
+  Object.assign(node, { [disposables]: items });
+
+  return items;
 }
 
-export function isBag(target: object): target is Bag {
+function hasDisposables(target: object): target is Bag {
   return disposables in target;
 }
 
@@ -95,9 +95,9 @@ export function set(
         element.removeAttributeNS(ns, name);
       } else if (Array.isArray(value)) {
         for (const callback of value) {
-          const bag = getBag(element);
+          const disposables = getDisposables(element);
 
-          bag[disposables].push(
+          disposables.push(
             spy(() => {
               const value = callback(element.getAttributeNS(ns, name));
 
@@ -171,19 +171,13 @@ export function use<V>(
 
   const get = () => {
     const observer = current.observers.at(-1);
+    const disposables = current.disposables.at(-1);
 
-    if (!observer) {
+    if (!observer || !disposables) {
       return value;
     }
 
     observers.add(observer);
-
-    const disposables = current.disposables.at(-1);
-
-    if (!disposables) {
-      return value;
-    }
-
     disposables.add({
       dispose() {
         observers.delete(observer);
