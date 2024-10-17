@@ -1,13 +1,15 @@
+import { disposable, dispose, isDisposable } from "./disposable.ts";
 import { getDocument } from "./document.ts";
-import { Callback, getDisposables, spy } from "./hooks.ts";
+import { spy } from "./observable.ts";
 
 /**
  *
  */
 export type Option<N extends ParentNode> =
+  | (() => Option<ParentNode>)[]
+  | ((node: N) => Option<N>)
   | bigint
   | boolean
-  | Callback<N, Option<N>>
   | Node
   | null
   | number
@@ -15,7 +17,6 @@ export type Option<N extends ParentNode> =
   | string
   | symbol
   | undefined
-  | View
   | void;
 
 /**
@@ -28,7 +29,7 @@ export type Properties<N> = {
 /**
  *
  */
-export type Property<V> = Callback<V, V | undefined | void>[];
+export type Property<V> = ((value: V) => V | undefined | void)[];
 
 /**
  *
@@ -38,11 +39,6 @@ export type Tags = {
     ...options: Option<HTMLElementTagNameMap[T]>[]
   ) => HTMLElementTagNameMap[T];
 };
-
-/**
- *
- */
-export type View = Callback<void, Option<ParentNode>>[];
 
 /**
  *
@@ -106,7 +102,7 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): void {
                 const value = callback(node[key]);
 
                 if (value !== undefined) {
-                  Object.assign(node, { [key]: value });
+                  node[key] = value;
                 }
               }),
             );
@@ -142,7 +138,13 @@ export function jot<N extends ParentNode>(node: N, ...options: Option<N>[]): N {
     apply(option, node);
   }
 
-  return node;
+  return disposable(node, () => {
+    for (const child of node.childNodes) {
+      if (isDisposable(child)) {
+        dispose();
+      }
+    }
+  });
 }
 
 /**
