@@ -1,11 +1,11 @@
-let current = document;
+const current = { document };
 
 /**
  *
  * @returns
  */
 export function getDocument(): Document {
-  return current;
+  return current.document;
 }
 
 /**
@@ -13,5 +13,5 @@ export function getDocument(): Document {
  * @param document
  */
 export function setDocument(document: Document): void {
-  current = document;
+  current.document = document;
 }

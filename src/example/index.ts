@@ -1,61 +1,115 @@
-import { dispose, tags, use } from "../main/mod.ts";
+import { css } from "../main/css.ts";
+import { $ } from "../main/jot.ts";
+import { tags, use } from "../main/mod.ts";
+import { spy } from "../main/reference.ts";
 
-const j = tags;
+const { button, div } = tags;
 
-function Todo(item: string) {
-  const completed = use(false);
+const state1 = use(0);
+const state2 = use(0);
+const view = spy(() => {
+  console.log("state", state1.value, state2.value);
 
-  const label = j.span(item, {
-    style: [
-      (s) => {
-        s.textDecoration = completed.value ? "line-through" : "";
-      },
-    ],
-  });
-
-  const todo = j.div(
-    j.button("X", {
-      onclick: () => {
-        dispose(todo);
-        todo.replaceWith();
-      },
-    }),
-    j.button("C", {
-      onclick: () => (completed.value = !completed.value),
-    }),
-    label,
-  );
-
-  return todo;
-}
+  return state1.value + " " + state2.value;
+});
 
 function App() {
-  const list = j.div();
-  const input = j.input();
-
-  return j.div(
-    j.h1("TODO LIST"),
-    j.form(
-      {
-        onsubmit: (event) => {
-          event.preventDefault();
-
-          if (!input.value) {
-            return;
-          }
-
-          list.append(Todo(input.value));
-          input.value = "";
-        },
+  return $(
+    button("A", {
+      onclick: () => {
+        console.log("A");
+        state1.value = Date.now();
       },
-      input,
-      j.button("Create new todo"),
-      list,
+    }),
+    button("B", {
+      onclick: () => {
+        console.log("B");
+        state2.value = Date.now();
+      },
+    }),
+    div(() => state1.value),
+    div(
+      css({ "&": { margin: ".5rem" } }),
+      { style: [(s) => ((s.color = "red"), undefined)] },
+      () => view.value,
     ),
   );
 }
 
 document.body.append(App());
+
+// setTimeout(() => {
+//   document.body.replaceChildren();
+// }, 3_000);
+
+// import { tags, use } from "../main/mod.ts";
+
+// const j = tags;
+
+// function Todo(item: string) {
+//   const completed = use(false);
+
+//   const label = j.span(item, {
+//     style: [
+//       (s) => {
+//         s.textDecoration = completed.value ? "line-through" : "";
+//       },
+//     ],
+//   });
+
+//   const todo = j.div(
+//     j.button("X", {
+//       onclick: () => {
+//         // dispose(todo);
+//         todo.replaceWith();
+//       },
+//     }),
+//     j.button("C", {
+//       onclick: () => (completed.value = !completed.value),
+//     }),
+//     label,
+//   );
+
+//   return todo;
+// }
+
+// function App() {
+//   const list = j.div();
+//   const input = j.input();
+
+//   return j.div(
+//     j.h1("TODO LIST"),
+//     j.form(
+//       {
+//         onsubmit: (event) => {
+//           event.preventDefault();
+
+//           if (!input.value) {
+//             return;
+//           }
+
+//           list.append(Todo(input.value));
+//           input.value = "";
+//         },
+//       },
+//       input,
+//       j.button("Create new todo"),
+//       list,
+//     ),
+//   );
+// }
+
+// document.body.append(App());
+
+/**
+ *
+ *
+ *
+ * OLD
+ *
+ *
+ *
+ */
 
 // const url =
 //   "https://corsproxy.io/?" +

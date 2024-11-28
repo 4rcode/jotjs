@@ -32,4 +32,5 @@ pre-commit: all
 	git add dist
 
 ${DENO}:
-	curl -fsSL https://deno.land/install.sh | sh
+	curl -fsSL https://deno.land/install.sh | \
+	sh -s -- --yes --no-modify-path

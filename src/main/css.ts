@@ -1,4 +1,5 @@
 import { getDocument } from "./document.ts";
+import { Hook, hook } from "./jot.ts";
 
 const style: {
   counter: number;
@@ -15,7 +16,7 @@ const style: {
  */
 export function css(rules: {
   [selector: string]: Partial<CSSStyleDeclaration>;
-}): (element: Element) => void {
+}): Hook<Element> {
   if (!style.sheet) {
     const document = getDocument();
     const element = document.createElement("style");
@@ -42,16 +43,14 @@ export function css(rules: {
     );
   }
 
-  return Object.assign(
-    (element: Element) => {
+  return <Hook<Element>>{
+    [hook](element) {
       element.classList.add(className);
     },
-    {
-      toString() {
-        return className;
-      },
+    toString() {
+      return className;
     },
-  );
+  };
 }
 
 /**

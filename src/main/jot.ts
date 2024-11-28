@@ -1,15 +1,23 @@
-import { disposable, dispose, isDisposable } from "./disposable.ts";
+import { Function } from "./core.ts";
+import { Disposable, dispose, isDisposable } from "./disposable.ts";
 import { getDocument } from "./document.ts";
-import { spy } from "./observable.ts";
+import { spy } from "./reference.ts";
+
+/**
+ *
+ */
+export interface Hook<N extends ParentNode> {
+  [hook](node: N): Option<N>;
+}
 
 /**
  *
  */
 export type Option<N extends ParentNode> =
-  | (() => Option<ParentNode>)[]
-  | ((node: N) => Option<N>)
+  | Function<N, Option<N>>[]
   | bigint
   | boolean
+  | Hook<N>
   | Node
   | null
   | number
@@ -17,6 +25,7 @@ export type Option<N extends ParentNode> =
   | string
   | symbol
   | undefined
+  | View<N>
   | void;
 
 /**
@@ -29,7 +38,7 @@ export type Properties<N> = {
 /**
  *
  */
-export type Property<V> = ((value: V) => V | undefined | void)[];
+export type Property<V> = Function<V, V | undefined | void>[];
 
 /**
  *
@@ -42,6 +51,11 @@ export type Tags = {
 
 /**
  *
+ */
+export interface View<N extends Node> extends Function<N, Option<ParentNode>> {}
+
+/**
+ *
  * @param options
  * @returns
  */
@@ -49,7 +63,34 @@ export function $(...options: Option<ParentNode>[]): ParentNode {
   return jot(getDocument().createDocumentFragment(), ...options);
 }
 
-function apply<N extends ParentNode>(option: Option<N>, node: N): void {
+/**
+ *
+ * @param node
+ * @param disposable
+ * @returns
+ */
+export function addDisposable<N extends Node>(
+  node: N,
+  disposable: Disposable,
+): N {
+  let disposeNode: Function;
+
+  if (isDisposable(node)) {
+    disposeNode = node[dispose];
+  }
+
+  return Object.assign(node, {
+    [dispose]() {
+      if (disposeNode) {
+        disposeNode();
+      }
+
+      disposable[dispose]();
+    },
+  });
+}
+
+function apply<N extends ParentNode>(node: N, option: Option<N>): void {
   if (option == null) {
     return;
   }
@@ -58,57 +99,57 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): void {
     case "string":
       return node.append(option);
 
-    case "function":
-      return apply(option(node), node);
+    case "function": {
+      const document = getDocument();
+      const range = document.createRange();
+      const start = document.createTextNode("");
+      const end = document.createTextNode("");
+
+      node.append(start, end);
+
+      addDisposable(
+        node,
+        spy(() => {
+          range.setStartAfter(start);
+          range.setEndBefore(end);
+          range.deleteContents();
+          range.insertNode($(option(node)));
+        }),
+      );
+
+      return;
+    }
 
     case "object": {
       if (isNode(option)) {
         return node.append(option);
       }
 
-      if (Array.isArray(option)) {
-        const disposables = getDisposables(node);
-
-        for (const callback of option) {
-          const document = getDocument();
-          const range = document.createRange();
-          const start = document.createTextNode("");
-          const end = document.createTextNode("");
-
-          node.append(start, end);
-
-          disposables.push(
-            spy(() => {
-              range.setStartAfter(start);
-              range.setEndBefore(end);
-              range.deleteContents();
-              range.insertNode($(callback()));
-            }),
-          );
-        }
-
-        return;
+      if (isHook<N>(option)) {
+        return apply(node, option[hook](node));
       }
 
-      for (const key in option) {
-        const value = option[key];
+      if (Array.isArray(option)) {
+        for (const callback of option) {
+          apply(node, callback(node));
+        }
+      } else {
+        for (const key in option) {
+          const value = option[key];
 
-        if (isProperty<N[typeof key]>(value)) {
-          const disposables = getDisposables(node);
-
-          for (const callback of value) {
-            disposables.push(
+          if (isProperty<N[typeof key]>(value)) {
+            for (const callback of value) {
               spy(() => {
                 const value = callback(node[key]);
 
                 if (value !== undefined) {
                   node[key] = value;
                 }
-              }),
-            );
+              });
+            }
+          } else {
+            Object.assign(node, { [key]: value });
           }
-        } else {
-          Object.assign(node, { [key]: value });
         }
       }
 
@@ -117,6 +158,36 @@ function apply<N extends ParentNode>(option: Option<N>, node: N): void {
   }
 
   return node.append(String(option));
+}
+
+/**
+ *
+ * @param nodes
+ */
+export function discard(...nodes: Node[]) {
+  for (const node of nodes) {
+    discard(...node.childNodes);
+
+    if (isDisposable(node)) {
+      node[dispose]();
+    }
+  }
+}
+
+/**
+ *
+ */
+export const hook = Symbol();
+
+/**
+ *
+ * @param target
+ * @returns
+ */
+export function isHook<N extends ParentNode>(
+  target: object,
+): target is Hook<N> {
+  return hook in target;
 }
 
 function isNode(target: object): target is Node {
@@ -135,16 +206,10 @@ function isProperty<V>(target: unknown): target is Property<V> {
  */
 export function jot<N extends ParentNode>(node: N, ...options: Option<N>[]): N {
   for (const option of options) {
-    apply(option, node);
+    apply(node, option);
   }
 
-  return disposable(node, () => {
-    for (const child of node.childNodes) {
-      if (isDisposable(child)) {
-        dispose();
-      }
-    }
-  });
+  return node;
 }
 
 /**

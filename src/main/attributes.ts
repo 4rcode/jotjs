@@ -1,12 +1,14 @@
-import { disposable } from "./disposable.ts";
-import { spy } from "./observable.ts";
+import { Function } from "./core.ts";
+import { addDisposable, hook, Hook } from "./jot.ts";
+import { spy } from "./reference.ts";
 
 /**
  *
  */
-export type Attribute = ((
-  value: string | null,
-) => bigint | boolean | null | number | string | symbol | undefined | void)[];
+export type Attribute = Function<
+  string | null,
+  bigint | boolean | null | number | string | symbol | undefined | void
+>;
 
 /**
  *
@@ -27,35 +29,34 @@ export interface Attributes {
 /**
  *
  * @param attributes
+ * @param namespace
+ * @returns
  */
-export function set(
-  attributes: Attributes,
-  namespace?: string,
-): (element: Element) => void {
+export function set(attributes: Attributes, namespace?: string): Hook<Element> {
   const ns = namespace || null;
 
-  return (element) => {
-    for (const [name, value] of Object.entries(attributes)) {
-      if (value == null) {
-        element.removeAttributeNS(ns, name);
-      } else if (Array.isArray(value)) {
-        for (const callback of value) {
-          disposable(
+  return {
+    [hook](element) {
+      for (const [name, value] of Object.entries(attributes)) {
+        if (value == null) {
+          element.removeAttributeNS(ns, name);
+        } else if (typeof value === "function") {
+          addDisposable(
             element,
             spy(() => {
-              const value = callback(element.getAttributeNS(ns, name));
+              const computed = value(element.getAttributeNS(ns, name));
 
-              if (value == null) {
+              if (computed == null) {
                 element.removeAttributeNS(ns, name);
               } else {
-                element.setAttributeNS(ns, name, String(value));
+                element.setAttributeNS(ns, name, String(computed));
               }
             }),
           );
+        } else {
+          element.setAttributeNS(ns, name, String(value));
         }
-      } else {
-        element.setAttributeNS(ns, name, String(value));
       }
-    }
+    },
   };
 }
