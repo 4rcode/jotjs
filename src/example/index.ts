@@ -1,7 +1,7 @@
 import { css } from "../main/css.ts";
-import { $ } from "../main/jot.ts";
-import { tags, use } from "../main/mod.ts";
+import { tags, use } from "../main/jot.ts";
 import { spy } from "../main/reference.ts";
+import { $ } from "../main/tags.ts";
 
 const { button, div } = tags;
 

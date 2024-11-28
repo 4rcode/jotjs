@@ -1,5 +1,5 @@
 import { getDocument } from "./document.ts";
-import { Hook, hook } from "./jot.ts";
+import { Hook, hook } from "./tags.ts";
 
 const style: {
   counter: number;

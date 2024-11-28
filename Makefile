@@ -5,11 +5,11 @@ all: clean lint build
 build: ${DENO}
 	${DENO} run -A src/cmd/build.ts
 	# ${DENO} run -A npm:typescript/tsc
-	# mkdir dist/node
+	mkdir dist/node
 	# cp -r src/node/. dist/node
-	# cp dist/*js dist/*ts dist/node
-	# tar -zc -C dist/node -f dist/jotjs.tgz .
-	# rm -r dist/node
+	cp dist/*js dist/node
+	tar -zc -C dist/node -f dist/jotjs.tgz .
+	rm -r dist/node
 
 clean:
 	rm -rf dist

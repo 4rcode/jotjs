@@ -1,6 +1,6 @@
 import { Function } from "./core.ts";
-import { addDisposable, hook, Hook } from "./jot.ts";
 import { spy } from "./reference.ts";
+import { addDisposable, hook, Hook } from "./tags.ts";
 
 /**
  *
