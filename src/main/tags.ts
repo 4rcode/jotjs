@@ -1,19 +1,18 @@
 import { Function } from "./core.ts";
-import { Disposable, dispose, isDisposable } from "./disposable.ts";
 import { getDocument } from "./document.ts";
-import { spy } from "./reference.ts";
+import { addDisposable, spy } from "./reference.ts";
 
 /**
  *
  */
-export interface Hook<N extends ParentNode> {
+export interface Hook<N extends Node = Node> {
   [hook](node: N): Option<N>;
 }
 
 /**
  *
  */
-export type Option<N extends ParentNode> =
+export type Option<N extends Node = Node> =
   | Function<N, Option<N>>[]
   | bigint
   | boolean
@@ -52,42 +51,16 @@ export type Tags = {
 /**
  *
  */
-export interface View<N extends Node> extends Function<N, Option<ParentNode>> {}
+export interface View<N extends Node = Node>
+  extends Function<N, Option<DocumentFragment>> {}
 
 /**
  *
  * @param options
  * @returns
  */
-export function $(...options: Option<ParentNode>[]): ParentNode {
+export function $(...options: Option<DocumentFragment>[]): DocumentFragment {
   return jot(getDocument().createDocumentFragment(), ...options);
-}
-
-/**
- *
- * @param node
- * @param disposable
- * @returns
- */
-export function addDisposable<N extends Node>(
-  node: N,
-  disposable: Disposable,
-): N {
-  let disposeNode: Function;
-
-  if (isDisposable(node)) {
-    disposeNode = node[dispose];
-  }
-
-  return Object.assign(node, {
-    [dispose]() {
-      if (disposeNode) {
-        disposeNode();
-      }
-
-      disposable[dispose]();
-    },
-  });
 }
 
 function apply<N extends ParentNode>(node: N, option: Option<N>): void {
@@ -139,13 +112,16 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
 
           if (isProperty<N[typeof key]>(value)) {
             for (const callback of value) {
-              spy(() => {
-                const value = callback(node[key]);
+              addDisposable(
+                node,
+                spy(() => {
+                  const value = callback(node[key]);
 
-                if (value !== undefined) {
-                  node[key] = value;
-                }
-              });
+                  if (value !== undefined) {
+                    node[key] = value;
+                  }
+                }),
+              );
             }
           } else {
             Object.assign(node, { [key]: value });
@@ -158,20 +134,6 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
   }
 
   return node.append(String(option));
-}
-
-/**
- *
- * @param nodes
- */
-export function discard(...nodes: Node[]) {
-  for (const node of nodes) {
-    discard(...node.childNodes);
-
-    if (isDisposable(node)) {
-      node[dispose]();
-    }
-  }
 }
 
 /**
@@ -217,12 +179,12 @@ export function jot<N extends ParentNode>(node: N, ...options: Option<N>[]): N {
  */
 export const tags = new Proxy(<Tags>{}, {
   get(target, property, receiver) {
-    if (typeof property !== "string") {
-      return Reflect.get(target, property, receiver);
+    if (typeof property === "string") {
+      return (...options: Option<ParentNode>[]) => {
+        return jot(getDocument().createElement(property), ...options);
+      };
     }
 
-    return (...options: Option<ParentNode>[]) => {
-      return jot(getDocument().createElement(property), ...options);
-    };
+    return Reflect.get(target, property, receiver);
   },
 });

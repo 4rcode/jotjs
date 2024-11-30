@@ -1,13 +1,71 @@
 import { Function } from "./core.ts";
-import { Disposable, dispose } from "./disposable.ts";
 
 interface Dependency extends Function<Function, Function> {}
 
 /**
  *
  */
+export interface Disposable {
+  [dispose](): void;
+}
+
+/**
+ *
+ */
 export interface Reference<V> {
   value: V;
+}
+
+const dispose = Symbol();
+
+/**
+ *
+ * @param node
+ * @param disposable
+ * @returns
+ */
+export function addDisposable<N extends Node>(
+  node: N,
+  disposable: Disposable,
+): void {
+  let disposeNode: Function;
+
+  if (isDisposable(node)) {
+    disposeNode = node[dispose];
+  }
+
+  Object.assign(node, {
+    [dispose]() {
+      if (disposeNode) {
+        disposeNode();
+      }
+
+      disposable[dispose]();
+    },
+  });
+}
+
+/**
+ *
+ * @param nodes
+ */
+export function discard(...nodes: Node[]) {
+  for (const node of nodes) {
+    discard(...node.childNodes);
+
+    if (isDisposable(node)) {
+      node[dispose]();
+    }
+  }
+}
+
+/**
+ *
+ * @param target
+ * @returns
+ */
+export function isDisposable(target: object): target is Disposable {
+  return dispose in target;
 }
 
 const current: { dependencies?: Dependency[] } = {};
@@ -67,10 +125,12 @@ export function spy<V>(callback: Function<void, V>): Reference<V> & Disposable {
 export function use<V>(value: V): Reference<V> & Disposable {
   const callbacks = new Set<Function>();
 
-  const dependency = (callback: Function) => {
-    callbacks.add(callback);
-    return () => callbacks.delete(callback);
-  };
+  const dependency = (callback: Function) => (
+    callbacks.add(callback),
+    () => {
+      callbacks.delete(callback);
+    }
+  );
 
   return {
     [dispose]() {
