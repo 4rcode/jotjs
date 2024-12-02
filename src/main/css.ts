@@ -1,6 +1,38 @@
 import { getDocument } from "./document.ts";
 import { Hook, hook } from "./tags.ts";
 
+/**
+ *
+ */
+export type Definition =
+  | Partial<CSSStyleDeclaration>
+  | [string, ...Definition[]];
+
+function apply(rule: CSSStyleRule, definition: Definition): void {
+  if (!Array.isArray(definition)) {
+    return Object.assign(rule.style, definition), undefined;
+  }
+
+  const [selector, ...definitions] = definition;
+
+  const nested = rule.cssRules[
+    rule.insertRule(`${selector}{}`, rule.cssRules.length)
+  ] as CSSStyleRule;
+
+  for (const definition of definitions) {
+    apply(nested, definition);
+  }
+}
+
+function createStyleSheet(): CSSStyleSheet {
+  const document = getDocument();
+  const element = document.createElement("style");
+
+  document.head.appendChild(element);
+
+  return element.sheet!;
+}
+
 const style: {
   counter: number;
   sheet?: CSSStyleSheet;
@@ -11,19 +43,12 @@ const style: {
 
 /**
  *
- * @param rules
+ * @param definitions
  * @returns
  */
-export function css(rules: {
-  [selector: string]: Partial<CSSStyleDeclaration>;
-}): Hook<Element> {
+export function css(...definitions: Definition[]): Hook<Element> {
   if (!style.sheet) {
-    const document = getDocument();
-    const element = document.createElement("style");
-
-    document.head.appendChild(element);
-
-    style.sheet = element.sheet!;
+    style.sheet = createStyleSheet();
   }
 
   const className = (style.prefix || "s") + style.counter++;
@@ -32,15 +57,8 @@ export function css(rules: {
     style.sheet.insertRule(`.${className}{}`, style.sheet.cssRules.length)
   ] as CSSStyleRule;
 
-  for (const [selector, nested] of Object.entries(rules)) {
-    Object.assign(
-      (
-        rule.cssRules[
-          rule.insertRule(`${selector}{}`, rule.cssRules.length)
-        ] as CSSStyleRule
-      ).style,
-      nested,
-    );
+  for (const definition of definitions) {
+    apply(rule, definition);
   }
 
   return <Hook<Element>>{
@@ -57,7 +75,7 @@ export function css(rules: {
  *
  * @param prefix
  */
-export function setStylePrefix(prefix: string) {
+export function setStylePrefix(prefix: string): void {
   style.prefix = prefix;
 }
 
@@ -65,6 +83,6 @@ export function setStylePrefix(prefix: string) {
  *
  * @param element
  */
-export function setStyleSheet(sheet: CSSStyleSheet) {
+export function setStyleSheet(sheet: CSSStyleSheet): void {
   style.sheet = sheet;
 }

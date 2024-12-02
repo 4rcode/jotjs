@@ -6,7 +6,7 @@ interface Dependency extends Function<Function, Function> {}
  *
  */
 export interface Disposable {
-  [dispose](): void;
+  [DISPOSE](): void;
 }
 
 /**
@@ -16,7 +16,7 @@ export interface Reference<V> {
   value: V;
 }
 
-const dispose = Symbol();
+const DISPOSE = Symbol();
 
 /**
  *
@@ -31,16 +31,16 @@ export function addDisposable<N extends Node>(
   let disposeNode: Function;
 
   if (isDisposable(node)) {
-    disposeNode = node[dispose];
+    disposeNode = node[DISPOSE];
   }
 
   Object.assign(node, {
-    [dispose]() {
+    [DISPOSE]() {
       if (disposeNode) {
         disposeNode();
       }
 
-      disposable[dispose]();
+      disposable[DISPOSE]();
     },
   });
 }
@@ -49,12 +49,12 @@ export function addDisposable<N extends Node>(
  *
  * @param nodes
  */
-export function discard(...nodes: Node[]) {
+export function dispose(...nodes: Node[]) {
   for (const node of nodes) {
-    discard(...node.childNodes);
+    dispose(...node.childNodes);
 
     if (isDisposable(node)) {
-      node[dispose]();
+      node[DISPOSE]();
     }
   }
 }
@@ -65,7 +65,7 @@ export function discard(...nodes: Node[]) {
  * @returns
  */
 export function isDisposable(target: object): target is Disposable {
-  return dispose in target;
+  return DISPOSE in target;
 }
 
 const current: { dependencies?: Dependency[] } = {};
@@ -102,10 +102,10 @@ export function spy<V>(callback: Function<void, V>): Reference<V> & Disposable {
   }
 
   const reference = use(value);
-  const disposeReference = reference[dispose];
+  const disposeReference = reference[DISPOSE];
 
   return Object.assign(reference, {
-    [dispose]() {
+    [DISPOSE]() {
       disposeReference();
 
       for (const dispose of disposables) {
@@ -133,7 +133,7 @@ export function use<V>(value: V): Reference<V> & Disposable {
   );
 
   return {
-    [dispose]() {
+    [DISPOSE]() {
       callbacks.clear();
     },
     get value() {

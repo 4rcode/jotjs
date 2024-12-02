@@ -3,7 +3,7 @@ import { tags, use } from "../main/jot.ts";
 import { spy } from "../main/reference.ts";
 import { $ } from "../main/tags.ts";
 
-const { button, div } = tags;
+const { button, div, span } = tags;
 
 const state1 = use(0);
 const state2 = use(0);
@@ -29,9 +29,12 @@ function App() {
     }),
     div(() => state1.value),
     div(
-      css({ "&": { margin: ".5rem" } }),
-      { style: [(s) => ((s.color = "red"), undefined)] },
-      () => view.value,
+      css({ margin: "2rem" }, [
+        "span",
+        { color: "red" },
+        ["&", { textDecoration: "underline" }],
+      ]),
+      () => span(view.value),
     ),
   );
 }
