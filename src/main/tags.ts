@@ -1,6 +1,7 @@
 import { Function } from "./core.ts";
+import { register } from "./dependency.ts";
 import { getDocument } from "./document.ts";
-import { addDisposable, spy } from "./reference.ts";
+import { spy } from "./mutable.ts";
 
 /**
  *
@@ -54,15 +55,6 @@ export type Tags = {
 export interface View<N extends Node = Node>
   extends Function<N, Option<DocumentFragment>> {}
 
-/**
- *
- * @param options
- * @returns
- */
-export function $(...options: Option<DocumentFragment>[]): DocumentFragment {
-  return jot(getDocument().createDocumentFragment(), ...options);
-}
-
 function apply<N extends ParentNode>(node: N, option: Option<N>): void {
   if (option == null) {
     return;
@@ -74,23 +66,38 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
 
     case "function": {
       const document = getDocument();
-      const range = document.createRange();
       const start = document.createTextNode("");
       const end = document.createTextNode("");
+      const reference = new WeakRef(node);
+      const boundaries = new WeakMap<Node, [Text, Text]>();
 
       node.append(start, end);
+      boundaries.set(node, [start, end]);
 
-      addDisposable(
+      return register(
         node,
         spy(() => {
+          const node = reference.deref();
+
+          if (!node) {
+            return;
+          }
+
+          const boundary = boundaries.get(node);
+
+          if (!boundary) {
+            return;
+          }
+
+          const [start, end] = boundary;
+          const range = document.createRange();
+
           range.setStartAfter(start);
           range.setEndBefore(end);
           range.deleteContents();
-          range.insertNode($(option(node)));
+          range.insertNode(bag(option(node)));
         }),
       );
-
-      return;
     }
 
     case "object": {
@@ -111,10 +118,18 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
           const value = option[key];
 
           if (isProperty<N[typeof key]>(value)) {
+            const reference = new WeakRef(node);
+
             for (const callback of value) {
-              addDisposable(
+              register(
                 node,
                 spy(() => {
+                  const node = reference.deref();
+
+                  if (!node) {
+                    return;
+                  }
+
                   const value = callback(node[key]);
 
                   if (value !== undefined) {
@@ -134,6 +149,15 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
   }
 
   return node.append(String(option));
+}
+
+/**
+ *
+ * @param options
+ * @returns
+ */
+export function bag(...options: Option<DocumentFragment>[]): DocumentFragment {
+  return jot(getDocument().createDocumentFragment(), ...options);
 }
 
 /**

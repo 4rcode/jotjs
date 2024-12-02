@@ -1,5 +1,6 @@
 import { Function } from "./core.ts";
-import { addDisposable, spy } from "./reference.ts";
+import { register } from "./dependency.ts";
+import { spy } from "./mutable.ts";
 import { hook, Hook } from "./tags.ts";
 
 /**
@@ -33,7 +34,7 @@ function apply(
     return element.setAttributeNS(namespace, name, String(value));
   }
 
-  addDisposable(
+  register(
     element,
     spy(() => {
       const computed = value(element.getAttributeNS(namespace, name));

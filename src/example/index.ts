@@ -1,7 +1,4 @@
-import { css } from "../main/css.ts";
-import { tags, use } from "../main/jot.ts";
-import { spy } from "../main/reference.ts";
-import { $ } from "../main/tags.ts";
+import { bag, Mutable, spy, tags, use } from "../main/jot.ts";
 
 const { button, div, span } = tags;
 
@@ -13,8 +10,12 @@ const view = spy(() => {
   return state1.value + " " + state2.value;
 });
 
+let tmp: Mutable<unknown> | undefined = spy(() =>
+  console.log("tmp", state1.value, state2.value),
+);
+
 function App() {
-  return $(
+  return bag(
     button("A", {
       onclick: () => {
         console.log("A");
@@ -27,15 +28,19 @@ function App() {
         state2.value = Date.now();
       },
     }),
-    div(() => state1.value),
-    div(
-      css({ margin: "2rem" }, [
-        "span",
-        { color: "red" },
-        ["&", { textDecoration: "underline" }],
-      ]),
-      () => span(view.value),
+    button(
+      "temporary view",
+      {
+        onclick: (e) => {
+          (e.currentTarget as HTMLButtonElement).replaceWith("gone");
+          console.log(String(tmp));
+          tmp = undefined;
+        },
+      },
+      () => console.log("tmp view", state1.value, state2.value),
     ),
+    div(() => state1.value),
+    div(() => span(view.value)),
   );
 }
 
