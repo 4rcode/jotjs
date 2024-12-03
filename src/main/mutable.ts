@@ -1,8 +1,10 @@
 import { Function } from "./core.ts";
 
-interface Observable extends Function<Observer> {}
+interface Callback<V = unknown> extends Function<void, V> {}
 
-interface Observer extends Function<void, boolean> {}
+interface Observable extends Function<Observer, Function> {}
+
+interface Observer extends Function {}
 
 /**
  *
@@ -18,16 +20,24 @@ const current: { observables?: Observable[] } = {};
  * @param callback
  * @returns
  */
-export function spy<V>(callback: Function<void, V>): Mutable<V> {
+export function spy<V>(callback: Callback<V>): Mutable<V> {
   const observables = current.observables;
 
   current.observables = [];
 
+  let value: V;
+
   const observer = () => {
-    const mutable = reference.deref();
+    const mutable = mutableRef.deref();
 
     if (!mutable) {
-      return true;
+      return;
+    }
+
+    const callback = callbackRef.get(mutable);
+
+    if (!callback) {
+      return;
     }
 
     try {
@@ -35,24 +45,25 @@ export function spy<V>(callback: Function<void, V>): Mutable<V> {
     } catch (error) {
       console.error(error);
     }
-
-    return false;
   };
 
-  let value: V;
+  let mutable: Mutable<V>;
 
   try {
     value = callback();
+    mutable = use(value);
 
     for (const add of current.observables) {
-      add(observer);
+      registry.register(mutable, add(observer));
     }
   } finally {
     current.observables = observables;
   }
 
-  const mutable = use(value);
-  const reference = new WeakRef(mutable);
+  const mutableRef = new WeakRef(mutable);
+  const callbackRef = new WeakMap<WeakKey, Callback<V>>();
+
+  callbackRef.set(mutable, callback);
 
   return mutable;
 }
@@ -64,7 +75,9 @@ export function spy<V>(callback: Function<void, V>): Mutable<V> {
  */
 export function use<V>(value: V): Mutable<V> {
   const observers = new Set<Observer>();
-  const observable = (observer: Observer) => observers.add(observer);
+  const observable = (observer: Observer) => (
+    observers.add(observer), () => observers.delete(observer)
+  );
 
   return {
     get value() {
@@ -82,10 +95,12 @@ export function use<V>(value: V): Mutable<V> {
       value = next;
 
       for (const observer of observers) {
-        if (observer()) {
-          observers.delete(observer);
-        }
+        observer();
       }
     },
   };
 }
+
+const registry = new FinalizationRegistry(
+  (callback: Function) => (callback(), console.log("cleanup")),
+);

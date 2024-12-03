@@ -53,7 +53,7 @@ export type Tags = {
  *
  */
 export interface View<N extends Node = Node>
-  extends Function<N, Option<DocumentFragment>> {}
+  extends Function<N, Option<ParentNode>> {}
 
 function apply<N extends ParentNode>(node: N, option: Option<N>): void {
   if (option == null) {
@@ -69,10 +69,10 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
       const start = document.createTextNode("");
       const end = document.createTextNode("");
       const reference = new WeakRef(node);
-      const boundaries = new WeakMap<Node, [Text, Text]>();
+      const context = new WeakMap<Node, [Text, Text]>();
 
       node.append(start, end);
-      boundaries.set(node, [start, end]);
+      context.set(node, [start, end]);
 
       return register(
         node,
@@ -83,19 +83,25 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
             return;
           }
 
-          const boundary = boundaries.get(node);
+          const value = option(node);
+          const boundaries = context.get(node);
 
-          if (!boundary) {
+          if (!boundaries) {
             return;
           }
 
-          const [start, end] = boundary;
+          const [start, end] = boundaries;
+
+          if (!start.parentNode || !end.parentNode) {
+            return;
+          }
+
           const range = document.createRange();
 
           range.setStartAfter(start);
           range.setEndBefore(end);
           range.deleteContents();
-          range.insertNode(bag(option(node)));
+          range.insertNode(bag(value));
         }),
       );
     }
@@ -156,7 +162,7 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
  * @param options
  * @returns
  */
-export function bag(...options: Option<DocumentFragment>[]): DocumentFragment {
+export function bag(...options: Option<ParentNode>[]): ParentNode {
   return jot(getDocument().createDocumentFragment(), ...options);
 }
 

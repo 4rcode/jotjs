@@ -4,27 +4,23 @@ const { button, div, span } = tags;
 
 const state1 = use(0);
 const state2 = use(0);
-const view = spy(() => {
-  console.log("state", state1.value, state2.value);
-
-  return state1.value + " " + state2.value;
-});
+const view = spy(() => state1.value + " " + state2.value);
 
 let tmp: Mutable<unknown> | undefined = spy(() =>
   console.log("tmp", state1.value, state2.value),
 );
 
+void tmp;
+
 function App() {
   return bag(
     button("A", {
       onclick: () => {
-        console.log("A");
         state1.value = Date.now();
       },
     }),
     button("B", {
       onclick: () => {
-        console.log("B");
         state2.value = Date.now();
       },
     }),
@@ -32,8 +28,7 @@ function App() {
       "temporary view",
       {
         onclick: (e) => {
-          (e.currentTarget as HTMLButtonElement).replaceWith("gone");
-          console.log(String(tmp));
+          (e.currentTarget as ChildNode).remove();
           tmp = undefined;
         },
       },
