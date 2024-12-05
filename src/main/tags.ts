@@ -1,20 +1,17 @@
 import { Function } from "./core.ts";
-import { register } from "./dependency.ts";
 import { getDocument } from "./document.ts";
 import { spy } from "./mutable.ts";
 
 /**
  *
  */
-export interface Hook<N extends Node = Node> {
-  [hook](node: N): Option<N>;
-}
+export interface Hook<N extends Node = Node>
+  extends Array<Function<N, Option<N>>> {}
 
 /**
  *
  */
 export type Option<N extends Node = Node> =
-  | Function<N, Option<N>>[]
   | bigint
   | boolean
   | Hook<N>
@@ -64,17 +61,83 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
     case "string":
       return node.append(option);
 
-    case "function": {
-      const document = getDocument();
-      const start = document.createTextNode("");
-      const end = document.createTextNode("");
-      const reference = new WeakRef(node);
-      const context = new WeakMap<Node, [Text, Text]>();
+    case "function":
+      return applyFunction(node, option);
 
-      node.append(start, end);
-      context.set(node, [start, end]);
+    case "object":
+      return applyObject(node, option);
+  }
 
-      return register(
+  return node.append(String(option));
+}
+
+const ends = new WeakMap<Comment, Comment>();
+
+function applyFunction<N extends ParentNode>(node: N, view: View<N>): void {
+  const start = new Comment();
+  const end = new Comment();
+
+  node.append(start, end);
+  ends.set(start, end);
+
+  const nodeRef = new WeakRef(node);
+  const startRef = new WeakRef(start);
+
+  return register(
+    start,
+    spy(() => {
+      const node = nodeRef.deref();
+      const start = startRef.deref();
+
+      if (!node || !start) {
+        return;
+      }
+
+      const end = ends.get(start);
+
+      if (!end) {
+        return;
+      }
+
+      const slot = fragment(view(node));
+      const range = new Range();
+
+      range.setStartAfter(start);
+      range.setEndBefore(end);
+      range.deleteContents();
+      range.insertNode(slot);
+    }),
+  );
+}
+
+function applyObject<N extends ParentNode>(
+  node: N,
+  option: Function<N, Option<N>>[] | Hook<N> | Node | Properties<N>,
+): void {
+  if (isNode(option)) {
+    return node.append(option);
+  }
+
+  if (Array.isArray(option)) {
+    for (const callback of option) {
+      apply(node, callback(node));
+    }
+
+    return;
+  }
+
+  for (const key in option) {
+    const value = option[key];
+
+    if (!isProperty<N[typeof key]>(value)) {
+      Object.assign(node, { [key]: value });
+      continue;
+    }
+
+    const reference = new WeakRef(node);
+
+    for (const callback of value) {
+      register(
         node,
         spy(() => {
           const node = reference.deref();
@@ -83,78 +146,15 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
             return;
           }
 
-          const value = option(node);
-          const boundaries = context.get(node);
+          const value = callback(node[key]);
 
-          if (!boundaries) {
-            return;
+          if (value !== undefined) {
+            node[key] = value;
           }
-
-          const [start, end] = boundaries;
-
-          if (!start.parentNode || !end.parentNode) {
-            return;
-          }
-
-          const range = document.createRange();
-
-          range.setStartAfter(start);
-          range.setEndBefore(end);
-          range.deleteContents();
-          range.insertNode(bag(value));
         }),
       );
     }
-
-    case "object": {
-      if (isNode(option)) {
-        return node.append(option);
-      }
-
-      if (isHook<N>(option)) {
-        return apply(node, option[hook](node));
-      }
-
-      if (Array.isArray(option)) {
-        for (const callback of option) {
-          apply(node, callback(node));
-        }
-      } else {
-        for (const key in option) {
-          const value = option[key];
-
-          if (isProperty<N[typeof key]>(value)) {
-            const reference = new WeakRef(node);
-
-            for (const callback of value) {
-              register(
-                node,
-                spy(() => {
-                  const node = reference.deref();
-
-                  if (!node) {
-                    return;
-                  }
-
-                  const value = callback(node[key]);
-
-                  if (value !== undefined) {
-                    node[key] = value;
-                  }
-                }),
-              );
-            }
-          } else {
-            Object.assign(node, { [key]: value });
-          }
-        }
-      }
-
-      return;
-    }
   }
-
-  return node.append(String(option));
 }
 
 /**
@@ -162,24 +162,8 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
  * @param options
  * @returns
  */
-export function bag(...options: Option<ParentNode>[]): ParentNode {
+export function fragment(...options: Option<ParentNode>[]): ParentNode {
   return jot(getDocument().createDocumentFragment(), ...options);
-}
-
-/**
- *
- */
-export const hook = Symbol();
-
-/**
- *
- * @param target
- * @returns
- */
-export function isHook<N extends ParentNode>(
-  target: object,
-): target is Hook<N> {
-  return hook in target;
 }
 
 function isNode(target: object): target is Node {
@@ -202,6 +186,17 @@ export function jot<N extends ParentNode>(node: N, ...options: Option<N>[]): N {
   }
 
   return node;
+}
+
+const dependencies = new WeakMap();
+
+/**
+ *
+ * @param key
+ * @param value
+ */
+export function register(key: WeakKey, value: unknown) {
+  dependencies.set(key, value);
 }
 
 /**

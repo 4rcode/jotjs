@@ -1,4 +1,5 @@
-import { bag, Mutable, spy, tags, use } from "../main/jot.ts";
+import { css } from "../main/css.ts";
+import { fragment, jot, Mutable, spy, tags, use } from "../main/jot.ts";
 
 const { button, div, span } = tags;
 
@@ -7,13 +8,15 @@ const state2 = use(0);
 const view = spy(() => state1.value + " " + state2.value);
 
 let tmp: Mutable<unknown> | undefined = spy(() =>
-  console.log("tmp", state1.value, state2.value),
+  console.log("side effect view", state1.value, state2.value),
 );
 
 void tmp;
 
+const style = css({ margin: ".5rem" });
+
 function App() {
-  return bag(
+  return fragment(
     button("A", {
       onclick: () => {
         state1.value = Date.now();
@@ -24,22 +27,26 @@ function App() {
         state2.value = Date.now();
       },
     }),
-    button(
-      "temporary view",
-      {
-        onclick: (e) => {
-          (e.currentTarget as ChildNode).remove();
-          tmp = undefined;
-        },
+    button("remove =>", {
+      onclick: () => {
+        document.querySelectorAll(".foobar").forEach((f) => f.remove());
+        tmp = undefined;
       },
-      () => console.log("tmp view", state1.value, state2.value),
+    }),
+    div(
+      style,
+      { className: "foobar" },
+      () => (console.log("inline view"), state1.value + " ~ " + state2.value),
     ),
-    div(() => state1.value),
-    div(() => span(view.value)),
+    div(
+      style,
+      { className: "foobar" },
+      () => (console.log("early view"), span(view.value)),
+    ),
   );
 }
 
-document.body.append(App());
+jot(document.body, App());
 
 // setTimeout(() => {
 //   document.body.replaceChildren();

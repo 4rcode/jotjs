@@ -1,7 +1,6 @@
 import { Function } from "./core.ts";
-import { register } from "./dependency.ts";
 import { spy } from "./mutable.ts";
-import { hook, Hook } from "./tags.ts";
+import { Hook, register } from "./tags.ts";
 
 /**
  *
@@ -55,11 +54,11 @@ function apply(
  * @returns
  */
 export function set(attributes: Attributes, namespace?: string): Hook<Element> {
-  return {
-    [hook](element) {
+  return [
+    (element) => {
       for (const [name, value] of Object.entries(attributes)) {
         apply(element, namespace, name, value);
       }
     },
-  };
+  ];
 }

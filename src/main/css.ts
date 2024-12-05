@@ -1,5 +1,5 @@
 import { getDocument } from "./document.ts";
-import { Hook, hook } from "./tags.ts";
+import { Hook } from "./tags.ts";
 
 /**
  *
@@ -61,14 +61,11 @@ export function css(...definitions: Definition[]): Hook<Element> {
     apply(rule, definition);
   }
 
-  return <Hook<Element>>{
-    [hook](element) {
+  return [
+    (element) => {
       element.classList.add(className);
     },
-    toString() {
-      return className;
-    },
-  };
+  ];
 }
 
 /**
