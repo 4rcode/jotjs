@@ -1,6 +1,11 @@
-import { Function } from "./core.ts";
-
 interface Callback<V = unknown> extends Function<void, V> {}
+
+/**
+ *
+ */
+export interface Function<V = void, R = void> {
+  (value: V): R;
+}
 
 /**
  *

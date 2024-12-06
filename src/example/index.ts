@@ -1,21 +1,27 @@
 import { css } from "../main/css.ts";
-import { fragment, jot, Mutable, spy, tags, use } from "../main/jot.ts";
+import { fragment, id, jot, spy, tags, use } from "../main/jot.ts";
 
 const { button, div, span } = tags;
 
 const state1 = use(0);
 const state2 = use(0);
-const view = spy(() => state1.value + " " + state2.value);
 
-let tmp: Mutable<unknown> | undefined = spy(() =>
-  console.log("side effect view", state1.value, state2.value),
-);
+function View() {
+  const view = spy(
+    () => (
+      console.log("component"),
+      "component > " + state1.value + " " + state2.value
+    ),
+  );
 
-void tmp;
+  return span(() => view.value);
+}
 
 const style = css({ margin: ".5rem" });
 
 function App() {
+  const buttonId = id();
+
   return fragment(
     button("A", {
       onclick: () => {
@@ -27,22 +33,31 @@ function App() {
         state2.value = Date.now();
       },
     }),
-    button("remove =>", {
-      onclick: () => {
-        document.querySelectorAll(".foobar").forEach((f) => f.remove());
-        tmp = undefined;
+    button(
+      [
+        (e) => {
+          Object.assign(e, { foo: new Array(500_000).join("xx") });
+        },
+      ],
+      "remove => ",
+      buttonId,
+      () => (
+        console.log("button"), "button > " + state1.value + " ~ " + state2.value
+      ),
+      {
+        onclick: () => {
+          document.querySelectorAll(".foobar").forEach((c) => c.remove());
+          document.getElementById(String(buttonId))!.remove();
+        },
       },
-    }),
-    div(
-      style,
-      { className: "foobar" },
-      () => (console.log("inline view"), state1.value + " ~ " + state2.value),
     ),
     div(
-      style,
       { className: "foobar" },
-      () => (console.log("early view"), span(view.value)),
+      () => (
+        console.log("inline"), "inline > " + state1.value + " ~ " + state2.value
+      ),
     ),
+    div(style, { className: "foobar" }, View()),
   );
 }
 

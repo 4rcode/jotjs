@@ -1,5 +1,5 @@
 import { getDocument } from "./document.ts";
-import { Hook } from "./tags.ts";
+import { Hook, Stringer } from "./tags.ts";
 
 /**
  *
@@ -46,7 +46,7 @@ const style: {
  * @param definitions
  * @returns
  */
-export function css(...definitions: Definition[]): Hook<Element> {
+export function css(...definitions: Definition[]): Hook<Element> & Stringer {
   if (!style.sheet) {
     style.sheet = createStyleSheet();
   }
@@ -61,11 +61,18 @@ export function css(...definitions: Definition[]): Hook<Element> {
     apply(rule, definition);
   }
 
-  return [
-    (element) => {
-      element.classList.add(className);
+  return Object.assign(
+    <Hook<Element>>[
+      (element) => {
+        element.classList.add(className);
+      },
+    ],
+    {
+      toString() {
+        return className;
+      },
     },
-  ];
+  );
 }
 
 /**

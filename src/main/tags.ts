@@ -1,6 +1,5 @@
-import { Function } from "./core.ts";
 import { getDocument } from "./document.ts";
-import { spy } from "./mutable.ts";
+import { Function, spy } from "./mutable.ts";
 
 /**
  *
@@ -40,6 +39,13 @@ export type Property<V> = Function<V, V | undefined | void>[];
 /**
  *
  */
+export interface Stringer {
+  toString(): string;
+}
+
+/**
+ *
+ */
 export type Tags = {
   [T in keyof HTMLElementTagNameMap]: (
     ...options: Option<HTMLElementTagNameMap[T]>[]
@@ -71,31 +77,24 @@ function apply<N extends ParentNode>(node: N, option: Option<N>): void {
   return node.append(String(option));
 }
 
-const ends = new WeakMap<Comment, Comment>();
-
 function applyFunction<N extends ParentNode>(node: N, view: View<N>): void {
   const start = new Comment();
   const end = new Comment();
 
   node.append(start, end);
-  ends.set(start, end);
 
   const nodeRef = new WeakRef(node);
   const startRef = new WeakRef(start);
+  const endRef = new WeakRef(end);
 
   return register(
     start,
     spy(() => {
       const node = nodeRef.deref();
       const start = startRef.deref();
+      const end = endRef.deref();
 
-      if (!node || !start) {
-        return;
-      }
-
-      const end = ends.get(start);
-
-      if (!end) {
+      if (!node || !start || !end) {
         return;
       }
 
@@ -164,6 +163,29 @@ function applyObject<N extends ParentNode>(
  */
 export function fragment(...options: Option<ParentNode>[]): ParentNode {
   return jot(getDocument().createDocumentFragment(), ...options);
+}
+
+let counter = 0n;
+
+/**
+ *
+ * @returns
+ */
+export function id(): Hook<Element> & Stringer {
+  const id = `x${counter++}`;
+
+  return Object.assign(
+    <Hook<Element>>[
+      (element) => {
+        element.id = id;
+      },
+    ],
+    {
+      toString() {
+        return id;
+      },
+    },
+  );
 }
 
 function isNode(target: object): target is Node {

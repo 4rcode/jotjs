@@ -1,5 +1,4 @@
-import { Function } from "./core.ts";
-import { spy } from "./mutable.ts";
+import { Function, spy } from "./mutable.ts";
 import { Hook, register } from "./tags.ts";
 
 /**
