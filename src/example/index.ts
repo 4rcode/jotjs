@@ -1,27 +1,38 @@
 import { css } from "../main/css.ts";
 import { fragment, id, jot, spy, tags, use } from "../main/jot.ts";
 
-const { button, div, span } = tags;
+const { button, div } = tags;
 
 const state1 = use(0);
 const state2 = use(0);
+const view = spy(
+  () => (console.log("global view"), state1.value + " " + state2.value),
+);
+
+const divId = id();
+const viewId = id();
+const buttonId = id();
 
 function View() {
-  const view = spy(
-    () => (
-      console.log("component"),
-      "component > " + state1.value + " " + state2.value
-    ),
+  return div(
+    viewId,
+    () => (console.log("component"), "component > " + view.value),
   );
-
-  return span(() => view.value);
 }
 
-const style = css({ margin: ".5rem" });
+const style = css(
+  [
+    "*",
+    {
+      border: "0px solid",
+      padding: ".5rem",
+      margin: ".25rem",
+    },
+  ],
+  ["button", { background: "lightblue" }],
+);
 
 function App() {
-  const buttonId = id();
-
   return fragment(
     button("A", {
       onclick: () => {
@@ -34,34 +45,29 @@ function App() {
       },
     }),
     button(
-      [
-        (e) => {
-          Object.assign(e, { foo: new Array(500_000).join("xx") });
-        },
-      ],
-      "remove => ",
       buttonId,
       () => (
         console.log("button"), "button > " + state1.value + " ~ " + state2.value
       ),
       {
         onclick: () => {
-          document.querySelectorAll(".foobar").forEach((c) => c.remove());
-          document.getElementById(String(buttonId))!.remove();
+          document.getElementById(String(buttonId))?.remove();
+          document.getElementById(String(viewId))?.remove();
+          document.getElementById(String(divId))?.remove();
         },
       },
     ),
     div(
-      { className: "foobar" },
+      divId,
       () => (
         console.log("inline"), "inline > " + state1.value + " ~ " + state2.value
       ),
     ),
-    div(style, { className: "foobar" }, View()),
+    View(),
   );
 }
 
-jot(document.body, App());
+jot(document.body, style, App());
 
 // setTimeout(() => {
 //   document.body.replaceChildren();

@@ -32,9 +32,17 @@ function apply(
     return element.setAttributeNS(namespace, name, String(value));
   }
 
+  const reference = new WeakRef(element);
+
   register(
     element,
     spy(() => {
+      const element = reference.deref();
+
+      if (!element) {
+        return;
+      }
+
       const computed = value(element.getAttributeNS(namespace, name));
 
       if (computed == null) {

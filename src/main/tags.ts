@@ -88,7 +88,7 @@ function applyFunction<N extends ParentNode>(node: N, view: View<N>): void {
   const endRef = new WeakRef(end);
 
   return register(
-    start,
+    node,
     spy(() => {
       const node = nodeRef.deref();
       const start = startRef.deref();
@@ -217,8 +217,12 @@ const dependencies = new WeakMap();
  * @param key
  * @param value
  */
-export function register(key: WeakKey, value: unknown) {
-  dependencies.set(key, value);
+export function register(key: object, value: unknown) {
+  const anchor = {};
+  const symbol = Symbol();
+
+  Object.assign(key, { [symbol]: anchor });
+  dependencies.set(anchor, value);
 }
 
 /**
